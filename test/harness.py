@@ -58,9 +58,8 @@ def fs_write(pg, path, data):
 def start_add(pg): pg.click('[data-act=add]'); pg.wait_for_timeout(30)
 def keys(pg, s):
     for ch in s: pg.click(f'[data-act=key][data-k="{ch}"]')
-def current_payer(pg): return 'kyle' if 'Kyle' in pg.inner_text('.payer') else 'bre'
-def set_payer(pg, who):
-    if current_payer(pg) != who: pg.click('[data-act=toggle-payer]')
+def current_payer(pg): return pg.evaluate("document.querySelector('input[name=payer]:checked').value")
+def set_payer(pg, who): pg.check(f'input[name=payer][value={who}]')
 def next_step(pg): pg.click('[data-act=next]'); pg.wait_for_timeout(30)
 def save_at_store(pg, store_id): pg.click(f'[data-act=store][data-id="{store_id}"]'); pg.wait_for_timeout(100)
 def save_new_store(pg, name, category):

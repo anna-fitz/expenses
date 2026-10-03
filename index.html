@@ -99,13 +99,36 @@ button{cursor:pointer;touch-action:manipulation}
   .layer:not([hidden]) .frame{animation:rise .2s ease-out}
   @keyframes rise{from{transform:translateY(24px)}to{transform:none}}
 }
+.top.tall{min-height:auto;padding-bottom:10px}
+.top .title-lg{font-size:28px;font-weight:700;letter-spacing:-0.01em;line-height:1.15}
+.step{margin:2px 0 0;font-size:14px;color:var(--muted)}
+.fs{border:0;margin:0;padding:0;min-width:0}
+.segr{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;background:var(--sunk);border-radius:var(--r-sm)}
+.segr.three{grid-template-columns:1fr 1fr 1fr}
+.segr label{position:relative;display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:9px;font-weight:500;color:var(--muted);cursor:pointer;text-align:center;padding:0 6px}
+.segr input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
+.segr label:has(input:checked){background:var(--surface);color:var(--ink);font-weight:600;box-shadow:0 0 0 1px var(--line)}
+.segr label:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+.amt-field{display:flex;flex-direction:column;align-items:center;gap:6px}
+.amt-label{margin:0;font-size:15px;font-weight:600;color:var(--muted)}
+.display .fs{width:100%;max-width:320px}
+.display .help{margin:0;text-align:center}
+#bills-h{margin:0 0 4px}
+.chiprow{-webkit-mask-image:linear-gradient(to right,#000 85%,transparent);mask-image:linear-gradient(to right,#000 85%,transparent)}
+.amount-step{overflow-y:auto}
+@media (max-height:700px){
+  .top .title-lg{font-size:24px}
+  .key{min-height:46px}
+  .display{gap:6px;min-height:0}
+  .big{font-size:clamp(44px,14vw,60px)}
+}
 
 /* Amount step */
 .amount-step{flex:1;min-height:0;display:flex;flex-direction:column;padding:0 20px}
 .amount-step .inner{flex:1;display:flex;flex-direction:column;min-height:0}
 .display{flex:1;min-height:110px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
 .big{font-size:clamp(52px,17vw,72px);font-weight:700;letter-spacing:-0.03em;line-height:1}
-.big.empty-amt{color:var(--line)}
+.big.empty-amt{color:var(--muted)}
 .payer{border:1px solid var(--line);background:var(--surface);border-radius:99px;min-height:44px;padding:0 18px;font-weight:500;display:inline-flex;align-items:center;gap:6px}
 .billfor{font-size:15px;color:var(--muted);display:flex;align-items:center;gap:6px}
 .chiprow{display:flex;gap:8px;overflow-x:auto;padding:4px 0 12px;scrollbar-width:none;flex:none}

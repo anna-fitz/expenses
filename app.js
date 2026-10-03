@@ -227,27 +227,41 @@ function amountDisplay() {
   const int = Number(i || "0").toLocaleString("en-US");
   return `<span class="big">$${int}${d !== undefined ? "." + d : ""}</span>`;
 }
+function payerFieldset(name, value) {
+  const order = [S.me, other(S.me)];
+  return `<fieldset class="fs" id="${name}-set"><legend class="label">Paid by</legend><div class="segr">
+    ${order.map(p => `<label><input type="radio" name="${name}" value="${p}" ${value === p ? "checked" : ""}><span>${p === S.me ? "You" : esc(PEOPLE[p])}</span></label>`).join("")}
+  </div></fieldset>`;
+}
+function nextLabel() { return A.bill ? `Save ${A.bill.name}, ${fmt(toCents(A.buf || "") || 0)}` : "Next: choose store"; }
 function renderAmount() {
   const bills = S.bills.filter(b => b.active !== false).sort((a, b) => (a.order || 0) - (b.order || 0));
   const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "back"];
   openLayer(`<div class="frame">
-    <header class="top"><div class="inner"><h1 id="layer-title">Add expense</h1></div></header>
+    <header class="top tall"><div class="inner"><h1 id="layer-title" class="title-lg">Add expense</h1><p class="step">Step 1 of 2</p></div></header>
     <div class="amount-step"><div class="inner">
       <div class="display">
-        <div id="amt" aria-live="polite">${amountDisplay()}</div>
-        ${A.bill ? `<div class="billfor">For ${esc(A.bill.name)} <button class="link" data-act="clear-bill" style="min-height:32px">Change</button></div>` : ""}
-        <button class="payer" data-act="toggle-payer" aria-label="Paid by ${PEOPLE[A.payer]}. Tap to switch."><span class="dot" style="background:var(--${A.payer})"></span>Paid by ${PEOPLE[A.payer]}</button>
+        <div role="group" aria-labelledby="amt-label" aria-describedby="${A.bill ? "" : "amt-hint "}amt-err" class="amt-field">
+          <p id="amt-label" class="amt-label">Amount</p>
+          <div id="amt">${amountDisplay()}</div>
+        </div>
+        ${A.bill ? `<div class="billfor">For ${esc(A.bill.name)} <button class="link" data-act="clear-bill">Change</button></div>`
+                 : `<p class="help" id="amt-hint">Type it in, or pick a bill.</p>`}
         <p class="err" id="amt-err" hidden></p>
+        ${payerFieldset("payer", A.payer)}
       </div>
-      ${bills.length && !A.bill ? `<div class="chiprow" aria-label="Bills">${bills.map(b => `<button class="chip" data-act="bill" data-id="${esc(b.id)}">${esc(b.name)}<b>${fmt(b.usualCents)}</b></button>`).join("")}</div>` : ""}
+      ${bills.length && !A.bill ? `<h2 class="label" id="bills-h">Bills</h2>
+        <div class="chiprow" role="group" aria-labelledby="bills-h">${bills.map(b => `<button class="chip" data-act="bill" data-id="${esc(b.id)}">${esc(b.name)}<b>${fmt(b.usualCents)}</b></button>`).join("")}</div>` : ""}
       <div class="keys">${keys.map(k => k === "back"
         ? `<button class="key" data-act="key" data-k="back" aria-label="Delete last digit">⌫</button>`
         : `<button class="key" data-act="key" data-k="${k}">${k}</button>`).join("")}</div>
     </div></div>
     <footer class="dock"><div class="inner"><button class="btn" data-act="close">Cancel</button>
-      <button class="btn primary grow2" data-act="next">${A.bill ? "Save " + esc(A.bill.name) : "Next"}</button></div></footer>
+      <button class="btn primary grow2" data-act="next">${esc(nextLabel())}</button></div></footer>
   </div>`);
 }
+let amtTimer;
+function announceAmount() { clearTimeout(amtTimer); amtTimer = setTimeout(() => { const el = $("#amt"); if (el) announce("Amount " + el.textContent.trim()); }, 500); }
 function pressKey(k) {
   let b = A.buf;
   if (k === "back") b = b.slice(0, -1);
@@ -260,10 +274,12 @@ function pressKey(k) {
   A.buf = b;
   $("#amt").innerHTML = amountDisplay();
   $("#amt-err").hidden = true;
+  if (A.bill) $("[data-act=next]").textContent = nextLabel();
+  announceAmount();
 }
 function amountNext() {
   const c = toCents(A.buf || "");
-  if (!c) { const e = $("#amt-err"); e.textContent = "Enter an amount"; e.hidden = false; return; }
+  if (!c) { const e = $("#amt-err"); e.textContent = "Enter an amount"; e.hidden = false; announce("Enter an amount"); return; }
   A.cents = c;
   if (A.bill) {
     saveNew(A.bill.name, A.bill.category || "Utilities", { billId: A.bill.id, covers: new Date().toLocaleDateString("en-US", { month: "long" }) });
@@ -478,7 +494,6 @@ document.addEventListener("click", ev => {
     case "add": startAdd(); break;
     case "close": closeScreen(); break;
     case "key": pressKey(el.dataset.k); break;
-    case "toggle-payer": A.payer = other(A.payer); renderAmount(); break;
     case "bill": { const b = S.bills.find(x => x.id === el.dataset.id); if (!b) break;
       A.bill = b; A.payer = b.payer || "kyle"; A.buf = (b.usualCents / 100).toFixed(2); renderAmount(); break; }
     case "clear-bill": A.bill = null; A.buf = ""; A.payer = S.me; renderAmount(); break;
@@ -510,6 +525,10 @@ document.addEventListener("click", ev => {
       if (!em) { err.textContent = "Enter your email first, then tap Forgot password."; err.hidden = false; break; }
       sendPasswordResetEmail(auth, em.trim()).then(() => toast("If that account exists, a reset email is on its way")).catch(() => toast("Couldn’t send the email. Try again.")); break; }
   }
+});
+document.addEventListener("change", ev => {
+  const t = ev.target;
+  if (t.name === "payer") A.payer = t.value;
 });
 document.addEventListener("input", ev => {
   if (ev.target.id === "w-q") { A.q = ev.target.value; A.newStore = null; renderStoreList(); }
