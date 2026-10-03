@@ -2,8 +2,10 @@
 firestore.rules
 firebase-only/
 
-# Test harness contains real emails
-test/
+# Test sign-in emails stay local
+test/accounts.local.json
+test/*.png
+test/__pycache__/
 
 # Private notes: personal details, kept local only
 CLAUDE.md
