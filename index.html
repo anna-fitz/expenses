@@ -144,12 +144,14 @@ button{cursor:pointer;touch-action:manipulation}
 .toast[hidden]{display:none}
 .toast span{flex:1;padding:8px 0}
 .toast button{background:none;border:0;color:var(--bg);font-weight:700;min-height:44px;padding:0 12px;text-decoration:underline;text-underline-offset:3px}
+.toast button.x{text-decoration:none;font-size:18px;min-width:44px}
 </style>
 </head>
 <body>
-<div id="app" aria-live="polite"><div class="frame"><div class="scroll"><p class="muted" style="padding-top:40vh;text-align:center">Loading…</p></div></div></div>
+<div id="app"><div class="frame"><div class="scroll"><p class="muted" style="padding-top:40vh;text-align:center">Loading…</p></div></div></div>
 <div id="layer" class="layer" hidden role="dialog" aria-modal="true"></div>
 <div id="toast" class="toast" role="status" hidden></div>
+<div id="announcer" class="sr" aria-live="polite"></div>
 <noscript>This app needs JavaScript turned on.</noscript>
 <script type="module" src="./app.js"></script>
 </body>

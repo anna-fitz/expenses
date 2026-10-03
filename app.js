@@ -4,6 +4,7 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendP
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, query, where,
   orderBy, limit, onSnapshot, setDoc, updateDoc, deleteDoc, getDoc, getDocs, writeBatch, increment }
   from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import { esc, openLayer, closeLayer, resetLayer, keepFocus, announce, setTitle, toast, hideToast } from "./ui.js";
 
 /* ---------------- Config ---------------- */
 // Public by design: security comes from the Firestore rules, not from hiding this.
@@ -49,9 +50,8 @@ catch (e) { db = initializeFirestore(app, {}); }
 
 /* ---------------- State & helpers ---------------- */
 const S = { user: null, me: null, view: "home", expenses: [], merchants: {}, bills: [], settlements: [],
-  loaded: false, pending: false, online: navigator.onLine, unsubs: [] };
+  loaded: false, pending: false, online: navigator.onLine, unsubs: [], layer: null };
 const $ = s => document.querySelector(s);
-const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fmt = c => (c < 0 ? "-" : "") + "$" + (Math.abs(c) / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const pad = n => String(n).padStart(2, "0");
 const iso = d => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
@@ -80,19 +80,6 @@ async function sha256(text) {
 function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
 const isStandalone = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 
-/* ---------------- Toast ---------------- */
-let toastTimer;
-function toast(msg, actions = []) {
-  const t = $("#toast");
-  t.innerHTML = `<span>${esc(msg)}</span>` + actions.map((a, i) => `<button data-toast="${i}">${esc(a.label)}</button>`).join("");
-  t.hidden = false;
-  t.onclick = ev => {
-    const b = ev.target.closest("[data-toast]"); if (!b) return;
-    t.hidden = true; actions[+b.dataset.toast].run();
-  };
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { t.hidden = true; }, actions.length ? 6000 : 3500);
-}
 function writeFailed(e) {
   console.error(e);
   if (e && e.code === "permission-denied") toast("This account can’t make changes. Check the security rules in Firebase.");
@@ -123,12 +110,15 @@ const sortExp = list => list.slice().sort((a, b) => (b.date || "").localeCompare
 /* ---------------- Rendering: main screens ---------------- */
 function render() {
   const root = $("#app");
-  if (S.view === "login") { root.innerHTML = loginHTML(); return; }
-  if (S.view === "denied") { root.innerHTML = deniedHTML(); return; }
-  if (S.view === "history") { root.innerHTML = historyHTML(); return; }
-  const scroller = root.querySelector(".scroll"), top = scroller ? scroller.scrollTop : 0;
-  root.innerHTML = homeHTML();
-  const ns = root.querySelector(".scroll"); if (ns && S.view === "home") ns.scrollTop = top;
+  keepFocus(() => {
+    if (S.view === "login") { root.innerHTML = loginHTML(); setTitle("Sign in"); return; }
+    if (S.view === "denied") { root.innerHTML = deniedHTML(); setTitle("Not set up"); return; }
+    if (S.view === "history") { root.innerHTML = historyHTML(); setTitle("History"); return; }
+    const scroller = root.querySelector(".scroll"), top = scroller ? scroller.scrollTop : 0;
+    root.innerHTML = homeHTML(); if ($("#layer").hidden) setTitle(null);
+    const ns = root.querySelector(".scroll"); if (ns) ns.scrollTop = top;
+  }, "#app h1");
+  if (!$("#layer").hidden) setTitle(($("#layer-title") || {}).textContent || null);
 }
 function syncLabel() {
   if (!S.online) return "Offline, changes will sync";
@@ -223,12 +213,12 @@ function historyHTML() {
 }
 
 /* ---------------- Layer helpers ---------------- */
-function openLayer(html) { const l = $("#layer"); l.innerHTML = html; l.hidden = false; }
-function closeLayer() { const l = $("#layer"); l.hidden = true; l.innerHTML = ""; A.step = null; render(); }
+function closeScreen() { A.step = null; S.layer = null; closeLayer(render); }
 
 /* ---------------- Add flow: step 1 amount ---------------- */
 const A = {}; // add-flow state
 function startAdd() {
+  S.layer = "add";
   Object.assign(A, { step: "amount", buf: "", payer: S.me, bill: null, split: "half", date: todayISO(), note: "", covers: "",
     category: "", showOpts: false, q: "", newStore: null });
   renderAmount();
@@ -243,7 +233,7 @@ function renderAmount() {
   const bills = S.bills.filter(b => b.active !== false).sort((a, b) => (a.order || 0) - (b.order || 0));
   const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "back"];
   openLayer(`<div class="frame">
-    <header class="top"><div class="inner"><h1>Add expense</h1></div></header>
+    <header class="top"><div class="inner"><h1 id="layer-title">Add expense</h1></div></header>
     <div class="amount-step"><div class="inner">
       <div class="display">
         <div id="amt" aria-live="polite">${amountDisplay()}</div>
@@ -298,7 +288,7 @@ function optsSummary() {
 }
 function renderWhere() {
   openLayer(`<div class="frame">
-    <header class="top"><div class="inner"><h1>${fmt(A.cents)}, paid by ${PEOPLE[A.payer]}</h1></div></header>
+    <header class="top"><div class="inner"><h1 id="layer-title">${fmt(A.cents)}, paid by ${PEOPLE[A.payer]}</h1></div></header>
     <div class="scroll"><div class="inner">
       <label class="sr" for="w-q">Store</label>
       <input id="w-q" class="search" placeholder="Search or add a store" autocomplete="off" autocapitalize="words" value="${esc(A.q)}">
@@ -355,7 +345,7 @@ function saveNew(name, category, extra = {}) {
   setDoc(ref, data).catch(writeFailed);
   learnStore(name, data.category);
   const bill = extra.billId && S.bills.find(b => b.id === extra.billId);
-  closeLayer();
+  closeScreen();
   const over = bill && bill.usualCents && A.cents > bill.usualCents * 1.2 ? ` That’s more than the usual ${fmt(bill.usualCents)}.` : "";
   toast(`Added ${fmt(data.amountCents)} at ${data.merchant}.${over}`, [
     { label: "Undo", run: () => { deleteDoc(ref).catch(writeFailed); toast("Removed"); } },
@@ -369,9 +359,10 @@ function learnStore(name, category) {
 /* ---------------- Edit (full form, the rare path) ---------------- */
 const E = {};
 function openEdit(e) {
+  S.layer = "edit";
   Object.assign(E, { id: e.id, payer: e.payer, split: e.split || "half", confirmDel: false });
   openLayer(`<div class="frame">
-    <header class="top"><div class="inner" style="display:flex;align-items:center"><h1>Edit expense</h1><button class="link" data-act="close">Cancel</button></div></header>
+    <header class="top"><div class="inner" style="display:flex;align-items:center"><h1 id="layer-title">Edit expense</h1><button class="link" data-act="close">Cancel</button></div></header>
     <div class="scroll"><div class="inner">
       <label class="label" for="e-amt">Amount</label><input id="e-amt" class="input" inputmode="decimal" value="${(e.amountCents / 100).toFixed(2)}">
       <p class="err" id="e-err" hidden style="text-align:left"></p>
@@ -399,13 +390,13 @@ function saveEdit() {
   const data = { amountCents: c, payer: E.payer, merchant: name.slice(0, 80), category: $("#e-cat").value, date: $("#e-date").value || todayISO(),
     split: E.split, note: $("#e-note").value.trim().slice(0, 140), covers: $("#e-covers").value.trim().slice(0, 60), updatedAt: Date.now(), updatedBy: S.me };
   updateDoc(doc(db, "expenses", E.id), data).catch(writeFailed);
-  closeLayer(); toast("Changes saved");
+  closeScreen(); toast("Changes saved");
 }
 function deleteEdit() {
   const b = $("#e-del");
   if (!E.confirmDel) { E.confirmDel = true; b.textContent = "Tap again to delete"; return; }
   deleteDoc(doc(db, "expenses", E.id)).catch(writeFailed);
-  closeLayer(); toast("Expense deleted");
+  closeScreen(); toast("Expense deleted");
 }
 
 /* ---------------- Settle up ---------------- */
@@ -420,11 +411,12 @@ function mathHTML(t, o) {
     <div class="r total"><span>${o.from ? esc(PEOPLE[o.from]) + " pays " + esc(PEOPLE[o.to]) : "You’re even"}</span><span>${o.amt}</span></div></div>`;
 }
 function openSettle() {
+  S.layer = "settle";
   settleArmed = false;
   const list = S.expenses.slice(), t = calc(list), o = owes(t.net), dates = list.map(e => e.date).sort();
   const range = dates[0] === dates[dates.length - 1] ? "on " + shortDate(dates[0]) : "from " + shortDate(dates[0]) + " to " + shortDate(dates[dates.length - 1]);
   openLayer(`<div class="frame">
-    <header class="top"><div class="inner"><h1>Settle up</h1></div></header>
+    <header class="top"><div class="inner"><h1 id="layer-title">Settle up</h1></div></header>
     <div class="scroll"><div class="inner">
       <p class="muted" style="margin:0 0 14px">${list.length} expense${list.length === 1 ? "" : "s"} ${esc(range)}</p>
       ${mathHTML(t, o)}
@@ -445,16 +437,17 @@ function settleGo() {
   // One atomic batch (Firestore allows 500 writes per batch; chunk just in case).
   const ops = [b => b.set(sref, rec), ...list.map(e => b => b.update(doc(db, "expenses", e.id), { settled: true, settlementId: sref.id }))];
   for (let i = 0; i < ops.length; i += 450) { const b = writeBatch(db); ops.slice(i, i + 450).forEach(f => f(b)); b.commit().catch(writeFailed); }
-  closeLayer(); toast("Settled. Fresh balance started.");
+  closeScreen(); toast("Settled. Fresh balance started.");
 }
 
 /* ---------------- History detail ---------------- */
 async function openDetail(id) {
+  S.layer = "detail";
   const s = S.settlements.find(x => x.id === id); if (!s) return;
   const o = s.amountCents ? { from: s.from, to: s.to, amt: fmt(s.amountCents) } : { amt: fmt(0) };
   const t = Object.assign({}, s, { diffHalf: Math.round((s.kyleHalf - s.breHalf) / 2) });
   openLayer(`<div class="frame">
-    <header class="top"><div class="inner"><h1>Settled ${esc(longDate(s.date))}</h1></div></header>
+    <header class="top"><div class="inner"><h1 id="layer-title">Settled ${esc(longDate(s.date))}</h1></div></header>
     <div class="scroll"><div class="inner">${mathHTML(t, o)}<div id="d-list"><p class="muted">Loading expenses…</p></div></div></div>
     <footer class="dock"><div class="inner"><button class="btn" data-act="close">Back</button></div></footer></div>`);
   try {
@@ -471,7 +464,7 @@ document.addEventListener("click", ev => {
   const a = el.dataset.act;
   switch (a) {
     case "add": startAdd(); break;
-    case "close": closeLayer(); break;
+    case "close": closeScreen(); break;
     case "key": pressKey(el.dataset.k); break;
     case "toggle-payer": A.payer = other(A.payer); renderAmount(); break;
     case "bill": { const b = S.bills.find(x => x.id === el.dataset.id); if (!b) break;
@@ -516,7 +509,7 @@ document.addEventListener("keydown", ev => {
     else if (ev.key === "Backspace") { pressKey("back"); ev.preventDefault(); }
     else if (ev.key === "Enter") { amountNext(); ev.preventDefault(); }
   }
-  if (ev.key === "Escape" && !$("#layer").hidden) closeLayer();
+  if (ev.key === "Escape" && !$("#layer").hidden) closeScreen();
   if (ev.key === "Enter" && ev.target.id === "w-q" && A.q.trim()) { ev.preventDefault();
     const list = topStores(A.q), exact = list.find(m => m.name.toLowerCase() === A.q.trim().toLowerCase());
     if (exact) saveNew(exact.name, exact.category); else { A.newStore = A.q.trim(); renderStoreList(); } }
@@ -572,14 +565,13 @@ function subscribe() {
 
 onAuthStateChanged(auth, async user => {
   S.unsubs.forEach(u => u()); S.unsubs = [];
-  S.user = user; closeLayerSilently();
+  S.user = user; resetLayer(); hideToast(); S.layer = null; A.step = null;
   if (!user) { S.view = "login"; S.me = null; render(); return; }
   S.me = PEOPLE_BY_EMAIL_HASH[await sha256(String(user.email || "").trim().toLowerCase())] || null;
   if (!S.me) { S.view = "denied"; render(); return; }
   S.view = "home"; S.loaded = false; render();
   subscribe(); seedIfEmpty();
 });
-function closeLayerSilently() { const l = $("#layer"); l.hidden = true; l.innerHTML = ""; A.step = null; }
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
