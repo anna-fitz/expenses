@@ -4,6 +4,7 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendP
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, query, where,
   orderBy, limit, onSnapshot, setDoc, updateDoc, deleteDoc, getDoc, getDocs, writeBatch, increment }
   from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import { fmt, iso, todayISO, parseISO, daysBetween, shortDate, longDate, dayLabel, timeOf, greeting, balanceLine, sinceLine, savedLine, C } from "./copy.js";
 import { esc, openLayer, closeLayer, resetLayer, keepFocus, announce, setTitle, toast, hideToast } from "./ui.js";
 
 /* ---------------- Config ---------------- */
@@ -52,21 +53,6 @@ catch (e) { db = initializeFirestore(app, {}); }
 const S = { user: null, me: null, view: "home", expenses: [], merchants: {}, bills: [], settlements: [],
   loaded: false, pending: false, online: navigator.onLine, unsubs: [], layer: null };
 const $ = s => document.querySelector(s);
-const fmt = c => (c < 0 ? "-" : "") + "$" + (Math.abs(c) / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const pad = n => String(n).padStart(2, "0");
-const iso = d => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
-const todayISO = () => iso(new Date());
-const parseISO = s => { const [y, m, d] = String(s).split("-").map(Number); return new Date(y, (m || 1) - 1, d || 1); };
-const shortDate = s => parseISO(s).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-const longDate = s => parseISO(s).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-function dayLabel(s) {
-  if (s === todayISO()) return "Today";
-  const y = new Date(); y.setDate(y.getDate() - 1);
-  if (s === iso(y)) return "Yesterday";
-  const d = parseISO(s);
-  return d.toLocaleDateString("en-US", d.getFullYear() === new Date().getFullYear()
-    ? { weekday: "short", month: "short", day: "numeric" } : { month: "short", day: "numeric", year: "numeric" });
-}
 const slug = s => String(s).toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80) || "store";
 function toCents(str) {
   const v = String(str).replace(/[$,\s]/g, "");
@@ -82,8 +68,8 @@ const isStandalone = () => window.matchMedia("(display-mode: standalone)").match
 
 function writeFailed(e) {
   console.error(e);
-  if (e && e.code === "permission-denied") toast("This account can’t make changes. Check the security rules in Firebase.");
-  else toast("Couldn’t save that change. Try again.");
+  if (e && e.code === "permission-denied") toast(C.cantChange);
+  else toast(C.cantSave);
 }
 
 /* ---------------- Money math ---------------- */
@@ -121,8 +107,8 @@ function render() {
   if (!$("#layer").hidden) setTitle(($("#layer-title") || {}).textContent || null);
 }
 function syncLabel() {
-  if (!S.online) return "Offline, changes will sync";
-  if (S.pending) return "Syncing…";
+  if (!S.online) return C.offline;
+  if (S.pending) return C.syncing;
   return "";
 }
 function loginHTML() {
@@ -150,12 +136,14 @@ function installHint() {
   return `<div class="banner"><p>For the full-screen app, ${how}</p><button class="link" data-act="hide-install" aria-label="Dismiss">Dismiss</button></div>`;
 }
 function homeHTML() {
-  const list = sortExp(S.expenses), t = calc(list), o = owes(t.net);
-  const last = S.settlements[0];
-  const k = t.kyleHalf + t.kyleFull, b = t.breHalf + t.breFull, tot = k + b, kPct = tot ? k / tot * 100 : 50;
+  const list = sortExp(S.expenses), t = calc(list), bl = balanceLine(t.net, S.me, PEOPLE), amt = fmt(Math.abs(t.net));
+  const last = S.settlements[0], them = other(S.me);
+  const mine = S.me === "kyle" ? t.kyleHalf + t.kyleFull : t.breHalf + t.breFull;
+  const theirs = S.me === "kyle" ? t.breHalf + t.breFull : t.kyleHalf + t.kyleFull;
+  const tot = mine + theirs, myPct = tot ? mine / tot * 100 : 50;
   let rows = "";
   if (!S.loaded) rows = `<p class="muted">Loading expenses…</p>`;
-  else if (!list.length) rows = `<div class="card empty"><h2>Start tracking</h2><p class="muted" style="margin:0">Add the first shared expense. The balance updates on both phones right away.</p></div>`;
+  else if (!list.length) rows = `<div class="card empty"><h2>${esc(C.emptyTitle)}</h2><p class="muted" style="margin:0">${esc(C.emptyBody)}</p></div>`;
   else {
     let cur = null;
     for (const e of list) {
@@ -164,20 +152,20 @@ function homeHTML() {
     }
     rows += `</div></section>`;
   }
+  const since = sinceLine(list.length, last ? last.date : null, last ? daysBetween(last.date, todayISO()) : 0);
   return `<div class="frame">
-    <header class="top"><div class="inner" style="display:flex;align-items:center;gap:12px">
-      <h1>Shared expenses</h1><span class="sync" id="sync">${esc(syncLabel())}</span>
+    <header class="top"><div class="inner hdr">
+      <div class="hello"><h1>${esc(greeting(PEOPLE[S.me], new Date().getHours()))}</h1><span class="sync" id="sync">${esc(syncLabel())}</span></div>
       <button class="link" data-act="history">History</button></div></header>
     <div class="scroll"><div class="inner">
       ${installHint()}
       <section class="hero" aria-label="Current balance">
-        <p class="who">${esc(o.who)}</p><p class="amt">${o.amt}</p>
-        <div class="bar" role="img" aria-label="Kyle paid ${fmt(k)}, Bre paid ${fmt(b)}">
-          <span style="width:${kPct}%;background:var(--kyle)"></span><span style="width:${100 - kPct}%;background:var(--bre)"></span></div>
-        <div class="legend"><span><span class="dot" style="background:var(--kyle)"></span>Kyle paid ${fmt(k)}</span>
-          <span><span class="dot" style="background:var(--bre)"></span>Bre paid ${fmt(b)}</span></div>
-        <p class="since">${list.length ? `${list.length} expense${list.length === 1 ? "" : "s"} ${last ? "since you settled on " + esc(shortDate(last.date)) : "so far"}`
-          : (last ? "Last settled on " + esc(shortDate(last.date)) : "No expenses yet")}</p>
+        <p class="who">${esc(bl.who)}</p><p class="amt">${amt}</p>${bl.sub ? `<p class="sub">${esc(bl.sub)}</p>` : ""}
+        <div class="bar" role="img" aria-label="You paid ${fmt(mine)}, ${esc(PEOPLE[them])} paid ${fmt(theirs)}">
+          <span style="width:${myPct}%;background:var(--${S.me})"></span><span style="width:${100 - myPct}%;background:var(--${them})"></span></div>
+        <div class="legend"><span><span class="dot" style="background:var(--${S.me})"></span>You paid ${fmt(mine)}</span>
+          <span><span class="dot" style="background:var(--${them})"></span>${esc(PEOPLE[them])} paid ${fmt(theirs)}</span></div>
+        <p class="since">${esc(since)}</p>
         ${list.length ? `<button class="btn" style="width:100%;margin-top:14px" data-act="settle">Settle up</button>` : ""}
       </section>
       ${rows}
@@ -346,9 +334,9 @@ function saveNew(name, category, extra = {}) {
   learnStore(name, data.category);
   const bill = extra.billId && S.bills.find(b => b.id === extra.billId);
   closeScreen();
-  const over = bill && bill.usualCents && A.cents > bill.usualCents * 1.2 ? ` That’s more than the usual ${fmt(bill.usualCents)}.` : "";
-  toast(`Added ${fmt(data.amountCents)} at ${data.merchant}.${over}`, [
-    { label: "Undo", run: () => { deleteDoc(ref).catch(writeFailed); toast("Removed"); } },
+  const over = bill && bill.usualCents && A.cents > bill.usualCents * 1.2 ? fmt(bill.usualCents) : null;
+  toast(savedLine(fmt(data.amountCents), data.merchant, bill ? { name: bill.name, overUsual: over } : null), [
+    { label: "Undo", run: () => { deleteDoc(ref).catch(writeFailed); toast(C.removed); } },
     { label: "Edit", run: () => openEdit(Object.assign({ id: ref.id }, data)) }
   ]);
 }
@@ -390,13 +378,13 @@ function saveEdit() {
   const data = { amountCents: c, payer: E.payer, merchant: name.slice(0, 80), category: $("#e-cat").value, date: $("#e-date").value || todayISO(),
     split: E.split, note: $("#e-note").value.trim().slice(0, 140), covers: $("#e-covers").value.trim().slice(0, 60), updatedAt: Date.now(), updatedBy: S.me };
   updateDoc(doc(db, "expenses", E.id), data).catch(writeFailed);
-  closeScreen(); toast("Changes saved");
+  closeScreen(); toast(C.changesSaved);
 }
 function deleteEdit() {
   const b = $("#e-del");
   if (!E.confirmDel) { E.confirmDel = true; b.textContent = "Tap again to delete"; return; }
   deleteDoc(doc(db, "expenses", E.id)).catch(writeFailed);
-  closeScreen(); toast("Expense deleted");
+  closeScreen(); toast(C.deleted);
 }
 
 /* ---------------- Settle up ---------------- */
@@ -437,7 +425,7 @@ function settleGo() {
   // One atomic batch (Firestore allows 500 writes per batch; chunk just in case).
   const ops = [b => b.set(sref, rec), ...list.map(e => b => b.update(doc(db, "expenses", e.id), { settled: true, settlementId: sref.id }))];
   for (let i = 0; i < ops.length; i += 450) { const b = writeBatch(db); ops.slice(i, i + 450).forEach(f => f(b)); b.commit().catch(writeFailed); }
-  closeScreen(); toast("Settled. Fresh balance started.");
+  closeScreen(); toast(C.settled);
 }
 
 /* ---------------- History detail ---------------- */
@@ -493,7 +481,7 @@ document.addEventListener("click", ev => {
     case "detail": openDetail(el.dataset.id); break;
     case "hide-install": store("hideInstall", "1"); render(); break;
     case "signout": signOut(auth); break;
-    case "reset-pass": if (S.user) sendPasswordResetEmail(auth, S.user.email).then(() => toast("Password reset email sent")).catch(() => toast("Couldn’t send the email. Try again.")); break;
+    case "reset-pass": if (S.user) sendPasswordResetEmail(auth, S.user.email).then(() => toast(C.resetSent)).catch(() => toast(C.resetFailed)); break;
     case "forgot": { const em = ($("#l-email") || {}).value; const err = $("#l-err");
       if (!em) { err.textContent = "Enter your email first, then tap Forgot password."; err.hidden = false; break; }
       sendPasswordResetEmail(auth, em.trim()).then(() => toast("If that account exists, a reset email is on its way")).catch(() => toast("Couldn’t send the email. Try again.")); break; }
@@ -546,7 +534,7 @@ async function seedIfEmpty() {
 }
 function subscribe() {
   S.unsubs.forEach(u => u()); S.unsubs = [];
-  const err = e => { console.error(e); if (e.code === "permission-denied") toast("This account can’t read the data. Check the security rules in Firebase."); };
+  const err = e => { console.error(e); if (e.code === "permission-denied") toast(C.cantRead); };
   S.unsubs.push(onSnapshot(query(collection(db, "expenses"), where("settled", "==", false)), { includeMetadataChanges: true }, snap => {
     S.expenses = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
     S.pending = snap.metadata.hasPendingWrites; S.loaded = true;

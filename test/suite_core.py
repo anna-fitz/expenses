@@ -34,7 +34,7 @@ def run(b):
     cam = [x for x in expenses(pg) if x.get('note') == 'Camera']
     check('options applied', cam and cam[0]['split'] == 'full' and cam[0]['payer'] == 'kyle' and cam[0]['date'] == '2026-10-01')
     pg.wait_for_timeout(100)
-    check('balance $690.22', pg.inner_text('.hero .amt') == '$690.22' and pg.inner_text('.hero .who') == 'Bre owes Kyle')
+    check('balance $690.22', pg.inner_text('.hero .amt') == '$690.22' and pg.inner_text('.hero .who') == 'You owe Kyle')
     # edit
     lid = [k for k, v in st(pg).items() if k.startswith('expenses/') and v['merchant'] == 'Lazy Dog'][0].split('/')[1]
     pg.click(f'[data-act=edit][data-id="{lid}"]'); pg.fill('#e-amt', '25'); pg.click('[data-act=e-save]'); pg.wait_for_timeout(100)
