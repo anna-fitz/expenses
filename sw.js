@@ -1,5 +1,5 @@
 // Offline support: the app shell loads without a connection; Firestore keeps its own offline data.
-const CACHE = "shared-expenses-v1";
+const CACHE = "shared-expenses-v2";
 const SHELL = ["./", "./index.html", "./app.js", "./manifest.webmanifest",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png", "./icons/icon-maskable-512.png"];
 
