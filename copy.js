@@ -50,6 +50,7 @@ export const C = {
   emptyBody: "Add the first shared expense. It shows up on both phones right away.",
   removed: "Removed.",
   changesSaved: "Changes saved.",
+  noChanges: "Nothing changed.",
   deleted: "Expense deleted.",
   settled: "Settled. Fresh start.",
   offline: "Offline, changes will sync",

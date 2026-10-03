@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail }
   from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, query, where,
-  orderBy, limit, onSnapshot, setDoc, updateDoc, deleteDoc, getDoc, getDocs, writeBatch, increment }
+  orderBy, limit, onSnapshot, setDoc, getDoc, getDocs, writeBatch, increment }
   from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 import { fmt, iso, todayISO, parseISO, daysBetween, shortDate, longDate, dayLabel, timeOf, greeting, balanceLine, sinceLine, savedLine, C } from "./copy.js";
 import { esc, openLayer, closeLayer, resetLayer, keepFocus, announce, setTitle, toast, hideToast } from "./ui.js";
@@ -70,6 +70,16 @@ function writeFailed(e) {
   console.error(e);
   if (e && e.code === "permission-denied") toast(C.cantChange);
   else toast(C.cantSave);
+}
+
+/* ---------------- Activity log ---------------- */
+// One entry per add, edit, delete, or settle-up, written in the same batch as the change.
+// Undo removes the expense and its "add-{id}" entry together, so a corrected mistake leaves no trace.
+const EDIT_FIELDS = ["amountCents", "payer", "merchant", "category", "date", "split", "note", "covers"];
+const summaryOf = e => ({ amountCents: e.amountCents, merchant: e.merchant, payer: e.payer });
+function logEntry(b, entry, id) {
+  const ref = id ? doc(db, "activity", id) : doc(collection(db, "activity"));
+  b.set(ref, Object.assign({ at: Date.now(), by: S.me, expenseId: null, settlementId: null, summary: null, changes: [] }, entry));
 }
 
 /* ---------------- Money math ---------------- */
@@ -330,13 +340,16 @@ function saveNew(name, category, extra = {}) {
     createdAt: Date.now(), createdBy: S.me, updatedAt: Date.now(), updatedBy: S.me
   };
   // Not awaited on purpose: Firestore applies it locally right away and syncs when it can.
-  setDoc(ref, data).catch(writeFailed);
+  const batch = writeBatch(db);
+  batch.set(ref, data);
+  logEntry(batch, { action: "add", expenseId: ref.id, summary: summaryOf(data) }, `add-${ref.id}`);
+  batch.commit().catch(writeFailed);
   learnStore(name, data.category);
   const bill = extra.billId && S.bills.find(b => b.id === extra.billId);
   closeScreen();
   const over = bill && bill.usualCents && A.cents > bill.usualCents * 1.2 ? fmt(bill.usualCents) : null;
   toast(savedLine(fmt(data.amountCents), data.merchant, bill ? { name: bill.name, overUsual: over } : null), [
-    { label: "Undo", run: () => { deleteDoc(ref).catch(writeFailed); toast(C.removed); } },
+    { label: "Undo", run: () => { const u = writeBatch(db); u.delete(ref); u.delete(doc(db, "activity", `add-${ref.id}`)); u.commit().catch(writeFailed); toast(C.removed); } },
     { label: "Edit", run: () => openEdit(Object.assign({ id: ref.id }, data)) }
   ]);
 }
@@ -348,7 +361,7 @@ function learnStore(name, category) {
 const E = {};
 function openEdit(e) {
   S.layer = "edit";
-  Object.assign(E, { id: e.id, payer: e.payer, split: e.split || "half", confirmDel: false });
+  Object.assign(E, { id: e.id, payer: e.payer, split: e.split || "half", confirmDel: false, orig: Object.assign({}, e) });
   openLayer(`<div class="frame">
     <header class="top"><div class="inner" style="display:flex;align-items:center"><h1 id="layer-title">Edit expense</h1><button class="link" data-act="close">Cancel</button></div></header>
     <div class="scroll"><div class="inner">
@@ -377,13 +390,22 @@ function saveEdit() {
   if (!name) { err.textContent = "Add where it was from"; err.hidden = false; return; }
   const data = { amountCents: c, payer: E.payer, merchant: name.slice(0, 80), category: $("#e-cat").value, date: $("#e-date").value || todayISO(),
     split: E.split, note: $("#e-note").value.trim().slice(0, 140), covers: $("#e-covers").value.trim().slice(0, 60), updatedAt: Date.now(), updatedBy: S.me };
-  updateDoc(doc(db, "expenses", E.id), data).catch(writeFailed);
+  const changes = EDIT_FIELDS.filter(f => (E.orig[f] ?? "") !== (data[f] ?? ""))
+    .map(f => ({ field: f, from: E.orig[f] ?? "", to: data[f] ?? "" }));
+  if (!changes.length) { closeScreen(); toast(C.noChanges); return; }
+  const batch = writeBatch(db);
+  batch.update(doc(db, "expenses", E.id), data);
+  logEntry(batch, { action: "edit", expenseId: E.id, summary: summaryOf(E.orig), changes });
+  batch.commit().catch(writeFailed);
   closeScreen(); toast(C.changesSaved);
 }
 function deleteEdit() {
   const b = $("#e-del");
   if (!E.confirmDel) { E.confirmDel = true; b.textContent = "Tap again to delete"; return; }
-  deleteDoc(doc(db, "expenses", E.id)).catch(writeFailed);
+  const batch = writeBatch(db);
+  batch.delete(doc(db, "expenses", E.id));
+  logEntry(batch, { action: "delete", expenseId: E.id, summary: summaryOf(E.orig) });
+  batch.commit().catch(writeFailed);
   closeScreen(); toast(C.deleted);
 }
 
@@ -423,7 +445,9 @@ function settleGo() {
     kyleHalf: t.kyleHalf, breHalf: t.breHalf, kyleFull: t.kyleFull, breFull: t.breFull, count: list.length,
     periodStart: dates[0], periodEnd: dates[dates.length - 1] };
   // One atomic batch (Firestore allows 500 writes per batch; chunk just in case).
-  const ops = [b => b.set(sref, rec), ...list.map(e => b => b.update(doc(db, "expenses", e.id), { settled: true, settlementId: sref.id }))];
+  const ops = [b => b.set(sref, rec),
+    b => logEntry(b, { action: "settle", settlementId: sref.id, summary: { amountCents: rec.amountCents, from: rec.from, to: rec.to } }),
+    ...list.map(e => b => b.update(doc(db, "expenses", e.id), { settled: true, settlementId: sref.id }))];
   for (let i = 0; i < ops.length; i += 450) { const b = writeBatch(db); ops.slice(i, i + 450).forEach(f => f(b)); b.commit().catch(writeFailed); }
   closeScreen(); toast(C.settled);
 }
