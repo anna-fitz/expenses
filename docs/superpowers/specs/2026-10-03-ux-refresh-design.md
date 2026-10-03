@@ -78,7 +78,8 @@ by: "bre" | "kyle"
 action: "add" | "edit" | "delete" | "undo" | "settle"
 expenseId: string | null
 settlementId: string | null
-summary: { amountCents, merchant, payer }          // snapshot for add/delete/undo
+summary: { amountCents, merchant, payer }          // add/delete/undo: the expense; edit: the expense before the edit
+                                                   // settle: { amountCents, from, to }
 changes: [{ field, from, to }]                     // edit only; fields that differ
 ```
 - Each entry is written **in the same `writeBatch`** as the change it describes, so they're atomic and work offline. Settle-up adds one entry to its existing batch.
@@ -194,7 +195,7 @@ Also fixed, though they're Level AA: the empty "$0" contrast, and announcements 
   - profile emoji, color, and theme persist; the partner's color is disabled; the theme applies
   - activity entries are written for add, edit (changed fields only), delete, undo, and settle; the Activity tab lists them
   - stats tiles match the expected values for the seeded data
-- **axe-core** (via the `axe-playwright-python` package, test-only) runs on login, home, add step 1, add step 2 (with details open and new-store state), edit, settle, profile, History (both tabs), and settle-up detail, in light and dark mode, with tags `wcag2a`, `wcag21a`, `wcag22a`. Any violation fails the run.
+- **axe-core** (via the `axe-playwright-python` package, test-only) runs on login, home, add step 1, add step 2 (with details open and new-store state), edit, settle, profile, History (both tabs), and settle-up detail, in light and dark mode, with tags `wcag2a` and `wcag21a` (axe has no separate 2.2 Level A tag). Any violation fails the run. The two Level A criteria new in 2.2 are checked by hand: 3.2.6 Consistent help (the app has no help mechanism, so it passes as long as none is added inconsistently) and 3.3.7 Redundant entry (Edit amount keeps everything already entered).
 - The fake Firestore (`test/fb-store.js`) gets whatever it needs to support `orderBy("at")`/`limit` on `activity` and the batched writes above, if it doesn't already.
 
 **Manual (owner, iPhone VoiceOver, about 10 minutes):** a script in SETUP.md covering: sign in, hear the balance, add an expense by amount and store, undo it, add a new store with a category, open Profile and change the color, read Activity.
