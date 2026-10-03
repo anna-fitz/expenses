@@ -9,7 +9,7 @@ Give the app a warm, personal feel without adding clutter, make adding an expens
 **Success looks like:**
 - A first-time user can add an expense without being told how. Each step says what it wants and what comes next.
 - Each person sees the app from their own point of view ("You owe Kyle"), with their own emoji and color.
-- Every add, edit, delete, settle-up, and undo can be looked up later.
+- Every add, edit, delete, and settle-up can be looked up later. An undone add leaves no trace, because it was a correction rather than an event.
 - An automated axe scan finds no WCAG 2.0, 2.1, or 2.2 Level A violations on any screen, in light or dark mode, and a manual VoiceOver pass completes the main tasks.
 
 **Unchanged:** money rules, the expense, settlement, bill, and merchant data, $0 running cost, Firebase Spark, GitHub Pages, no build step, Firebase SDK 12.19.0.
@@ -75,15 +75,16 @@ The partner's current color is shown as taken and can't be selected. If both som
 ```
 at: number               // Date.now()
 by: "bre" | "kyle"
-action: "add" | "edit" | "delete" | "undo" | "settle"
+action: "add" | "edit" | "delete" | "settle"
 expenseId: string | null
 settlementId: string | null
-summary: { amountCents, merchant, payer }          // add/delete/undo: the expense; edit: the expense before the edit
+summary: { amountCents, merchant, payer }          // add/delete: the expense; edit: the expense before the edit
                                                    // settle: { amountCents, from, to }
 changes: [{ field, from, to }]                     // edit only; fields that differ
 ```
 - Each entry is written **in the same `writeBatch`** as the change it describes, so they're atomic and work offline. Settle-up adds one entry to its existing batch.
-- An undo writes `action: "undo"` (the add stays in the log).
+- An add entry uses the fixed ID `add-{expenseId}`. Every other entry gets an automatic ID.
+- **Undo** deletes the expense *and* its `add-{expenseId}` entry in one batch, so the Activity log shows nothing. Undo writes no entry of its own.
 - Recording starts at release. There's no backfill.
 
 **Rules addition** (`firebase-only/firestore.rules`):
@@ -92,8 +93,11 @@ match /activity/{id} {
   allow read: if isMember();
   allow create: if isMember()
     && request.resource.data.by in ['bre', 'kyle']
-    && request.resource.data.action in ['add', 'edit', 'delete', 'undo', 'settle'];
-  allow update, delete: if false;
+    && request.resource.data.action in ['add', 'edit', 'delete', 'settle'];
+  allow update: if false;
+  // Only Undo removes an entry: an "add" entry, in the same save that deletes its expense.
+  allow delete: if isMember() && resource.data.action == 'add'
+    && !existsAfter(/databases/$(database)/documents/expenses/$(resource.data.expenseId));
 }
 ```
 The rules must be published in the Firebase console **before** the app update is pushed. Otherwise every batched save would be rejected.
@@ -122,7 +126,6 @@ Title "Profile", Back button in the dock. Sections, each with an `h2`:
   - add: "Bre added $45.12 at Costco"
   - edit: "Kyle changed Costco: amount $45.12 → $25.00, store Costco → Target" (fields shown in plain names; at most 3 changes listed, then "and 2 more")
   - delete: "Bre deleted $12.00 at Target"
-  - undo: "Bre undid $12.00 at Target"
   - settle: "Kyle settled up: Bre paid Kyle $690.22" / "Kyle closed an even period"
   - Each row also shows the time ("3:42 PM"). Rows are read-only.
 
@@ -193,7 +196,7 @@ Also fixed, though they're Level AA: the empty "$0" contrast, and announcements 
   - a new store requires a category
   - Edit amount keeps state
   - profile emoji, color, and theme persist; the partner's color is disabled; the theme applies
-  - activity entries are written for add, edit (changed fields only), delete, undo, and settle; the Activity tab lists them
+  - activity entries are written for add, edit (changed fields only), delete, and settle; Undo removes both the expense and its add entry; the Activity tab lists them
   - stats tiles match the expected values for the seeded data
 - **axe-core** (via the `axe-playwright-python` package, test-only) runs on login, home, add step 1, add step 2 (with details open and new-store state), edit, settle, profile, History (both tabs), and settle-up detail, in light and dark mode, with tags `wcag2a` and `wcag21a` (axe has no separate 2.2 Level A tag). Any violation fails the run. The two Level A criteria new in 2.2 are checked by hand: 3.2.6 Consistent help (the app has no help mechanism, so it passes as long as none is added inconsistently) and 3.3.7 Redundant entry (Edit amount keeps everything already entered).
 - The fake Firestore (`test/fb-store.js`) gets whatever it needs to support `orderBy("at")`/`limit` on `activity` and the batched writes above, if it doesn't already.
