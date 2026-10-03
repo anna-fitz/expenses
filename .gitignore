@@ -4,3 +4,7 @@ firebase-only/
 
 # Test harness contains real emails
 test/
+
+# Private notes: personal details, kept local only
+CLAUDE.md
+SETUP.md
