@@ -218,7 +218,7 @@ const A = {}; // add-flow state
 function startAdd() {
   S.layer = "add";
   Object.assign(A, { step: "amount", buf: "", payer: S.me, bill: null, split: "half", date: todayISO(), note: "", covers: "",
-    category: "", showOpts: false, q: "", newStore: null });
+    category: "", showOpts: false, q: "", sel: null, newCat: "" });
   renderAmount();
 }
 function amountDisplay() {
@@ -289,56 +289,85 @@ function amountNext() {
 }
 
 /* ---------------- Add flow: step 2 where ---------------- */
-function topStores(q) {
-  const all = Object.entries(S.merchants).map(([id, m]) => Object.assign({ id }, m)).filter(m => m.name);
+const NEW = "__new__";
+function storeList(q) {
   const ql = q.trim().toLowerCase();
-  let list = ql ? all.filter(m => m.name.toLowerCase().includes(ql)) : all;
-  list.sort((a, b) => (ql ? (b.name.toLowerCase().startsWith(ql) - a.name.toLowerCase().startsWith(ql)) : 0) || (b.count || 0) - (a.count || 0));
-  return list.slice(0, ql ? 6 : 10);
+  return Object.entries(S.merchants).map(([id, m]) => Object.assign({ id }, m))
+    .filter(m => m.name && (!ql || m.name.toLowerCase().includes(ql)))
+    .sort((a, b) => a.name.localeCompare(b.name, "en", { sensitivity: "base" }));
 }
+const cleanQ = () => A.q.trim().replace(/\s+/g, " ");
 function optsSummary() {
-  const d = A.date === todayISO() ? "Today" : shortDate(A.date);
-  return [d, A.split === "full" ? "owed in full" : "split 50/50", A.category ? A.category : null].filter(Boolean).join(", ");
+  return [A.date === todayISO() ? "Today" : shortDate(A.date), A.split === "full" ? "owed in full" : "split 50/50", A.category || "usual category"].join(" · ");
 }
+function saveLabel() {
+  if (!A.sel) return "Choose a store";
+  const name = A.sel === NEW ? cleanQ() : (S.merchants[A.sel] || {}).name;
+  return `Save ${fmt(A.cents)} at ${name}`;
+}
+function splitFieldset(name, value) {
+  return `<fieldset class="fs" id="${name}-set"><legend class="label">Split</legend><div class="segr">
+    <label><input type="radio" name="${name}" value="half" ${value === "half" ? "checked" : ""}><span>50/50</span></label>
+    <label><input type="radio" name="${name}" value="full" ${value === "full" ? "checked" : ""}><span>Owed in full</span></label></div></fieldset>`;
+}
+const splitHelp = () => A.split === "full" ? `${PEOPLE[other(A.payer)]} pays back the whole ${fmt(A.cents)}.` : `${PEOPLE[other(A.payer)]} owes ${fmt(Math.round(A.cents / 2))}.`;
 function renderWhere() {
   openLayer(`<div class="frame">
-    <header class="top"><div class="inner"><h1 id="layer-title">${fmt(A.cents)}, paid by ${PEOPLE[A.payer]}</h1></div></header>
+    <header class="top tall"><div class="inner"><h1 id="layer-title" class="title-lg">Where was it?</h1><p class="step">Step 2 of 2</p>
+      <p class="ctx small">${fmt(A.cents)}, paid by ${A.payer === S.me ? "you" : esc(PEOPLE[A.payer])} · <button class="link inline" data-act="back-amount">Edit amount</button></p></div></header>
     <div class="scroll"><div class="inner">
-      <label class="sr" for="w-q">Store</label>
-      <input id="w-q" class="search" placeholder="Search or add a store" autocomplete="off" autocapitalize="words" value="${esc(A.q)}">
-      <div class="opts" style="margin-top:12px"><span id="w-sum">${esc(optsSummary())}</span><button class="link" data-act="toggle-opts" aria-expanded="${A.showOpts}">${A.showOpts ? "Done" : "Change"}</button></div>
+      <label class="label" for="w-q">Store</label>
+      <input id="w-q" class="search" placeholder="Search, or type a new one" autocomplete="off" autocapitalize="words" value="${esc(A.q)}">
+      <button class="details" data-act="toggle-opts" aria-expanded="${A.showOpts}" aria-controls="w-opts">
+        <span>Details: <span id="w-sum">${esc(optsSummary())}</span></span><span aria-hidden="true">${A.showOpts ? "▴" : "▾"}</span></button>
       <div class="panel card" id="w-opts" style="padding:2px 16px 16px" ${A.showOpts ? "" : "hidden"}>${optsPanelHTML()}</div>
+      <p class="err left" id="w-err" hidden></p>
       <div id="w-list"></div>
     </div></div>
-    <footer class="dock"><div class="inner"><button class="btn" data-act="back-amount">Back</button></div></footer>
+    <footer class="dock"><div class="inner"><button class="btn" data-act="back-amount">Back</button>
+      <button class="btn primary grow2" data-act="save-where" id="w-save">${esc(saveLabel())}</button></div></footer>
   </div>`);
   renderStoreList();
 }
 function optsPanelHTML() {
   return `<label class="label" for="o-date">Date</label><input id="o-date" class="input" type="date" value="${esc(A.date)}">
-    <span class="label">Split</span>
-    <div class="seg" id="o-split"><button data-act="o-split" data-v="half" aria-pressed="${A.split === "half"}">50/50</button>
-      <button data-act="o-split" data-v="full" aria-pressed="${A.split === "full"}">Owed in full</button></div>
-    <p class="help" id="o-split-help">${A.split === "full" ? `${PEOPLE[other(A.payer)]} pays back the whole ${fmt(A.cents)}.` : `${PEOPLE[other(A.payer)]} owes ${fmt(Math.round(A.cents / 2))}.`}</p>
+    <div style="margin-top:14px">${splitFieldset("o-split", A.split)}</div>
+    <p class="help" id="o-split-help">${esc(splitHelp())}</p>
     <label class="label" for="o-cat">Category</label>
     <select id="o-cat" class="input"><option value="">Use the store’s usual category</option>${CATEGORIES.map(c => `<option ${A.category === c ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>
     <label class="label" for="o-note">Note</label><input id="o-note" class="input" placeholder="Dog food" value="${esc(A.note)}">
-    <label class="label" for="o-covers">Covers</label><input id="o-covers" class="input" placeholder="July – September" value="${esc(A.covers)}">
-    <p class="help">For bills that pay for more than one month.</p>`;
+    <label class="label" for="o-covers">Covers</label><input id="o-covers" class="input" placeholder="July – September" value="${esc(A.covers)}" aria-describedby="o-covers-help">
+    <p class="help" id="o-covers-help">For bills that pay for more than one month.</p>`;
 }
 function renderStoreList() {
   const box = $("#w-list"); if (!box) return;
-  if (A.newStore) {
-    box.innerHTML = `<p style="margin:16px 0 0;font-weight:600">Pick a category for ${esc(A.newStore)}</p>
-      <div class="grid">${CATEGORIES.map(c => `<button class="store" data-act="new-cat" data-c="${esc(c)}">${esc(c)}</button>`).join("")}</div>
-      <button class="link" data-act="cancel-new" style="margin-top:8px">Pick a different store</button>`;
-    return;
+  const q = cleanQ(), list = storeList(q);
+  const exact = list.find(m => m.name.toLowerCase() === q.toLowerCase());
+  if (A.sel && A.sel !== NEW && !list.some(m => m.id === A.sel)) A.sel = null;   // never keep a hidden selection
+  if (A.sel === NEW && (!q || exact)) A.sel = null;
+  const tile = (value, label, sub) => `<label class="store${value === NEW ? " new" : ""}"><input type="radio" name="store" value="${esc(value)}" ${A.sel === value ? "checked" : ""}>
+    <span>${label}${sub ? `<small>${esc(sub)}</small>` : ""}</span><span class="tick" aria-hidden="true">✓</span></label>`;
+  const tiles = (q && !exact ? [tile(NEW, `Add ${esc(q)} as a new store`, "")] : []).concat(list.map(m => tile(m.id, esc(m.name), m.category || "")));
+  keepFocus(() => {
+    box.innerHTML = (tiles.length
+      ? `<fieldset class="fs" aria-describedby="w-err"><legend class="sr">Choose a store</legend><div class="grid">${tiles.join("")}</div></fieldset>`
+      : `<p class="muted">Type a store name to add it.</p>`)
+      + (A.sel === NEW ? `<label class="label" for="w-cat">Category for ${esc(q)}</label>
+        <select id="w-cat" class="input" aria-describedby="w-err"><option value="">Choose a category</option>${CATEGORIES.map(c => `<option ${A.newCat === c ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>` : "");
+  });
+  const s = $("#w-save"); if (s) s.textContent = saveLabel();
+}
+function saveWhere() {
+  const err = $("#w-err");
+  const fail = (msg, el) => { err.textContent = msg; err.hidden = false; announce(msg); if (el) el.focus(); };
+  if (!A.sel) return fail("Pick a store first", $("#w-list input[name=store]") || $("#w-q"));
+  readOpts();
+  if (A.sel === NEW) {
+    const name = cleanQ(), sel = $("#w-cat");
+    if (!A.newCat) { sel.setAttribute("aria-invalid", "true"); return fail(`Pick a category for ${name}`, sel); }
+    return saveNew(name, A.newCat);
   }
-  const q = A.q.trim(), list = topStores(q);
-  const exact = list.some(m => m.name.toLowerCase() === q.toLowerCase());
-  box.innerHTML = `<div class="grid">${list.map(m => `<button class="store" data-act="store" data-id="${esc(m.id)}">${esc(m.name)}<small>${esc(m.category || "")}</small></button>`).join("")}
-    ${q && !exact ? `<button class="store new" data-act="new-store">Add “${esc(q)}”</button>` : ""}</div>
-    ${!list.length && !q ? `<p class="muted">Type a store name to add it.</p>` : ""}`;
+  const m = S.merchants[A.sel]; if (m) saveNew(m.name, m.category);
 }
 function readOpts() {
   const d = $("#o-date"); if (!d) return;
@@ -499,15 +528,9 @@ document.addEventListener("click", ev => {
     case "clear-bill": A.bill = null; A.buf = ""; A.payer = S.me; renderAmount(); break;
     case "next": amountNext(); break;
     case "back-amount": readOpts(); A.step = "amount"; renderAmount(); break;
-    case "store": { const m = S.merchants[el.dataset.id]; if (m) saveNew(m.name, m.category); break; }
-    case "new-store": A.newStore = A.q.trim().replace(/\s+/g, " "); if (A.category) saveNew(A.newStore, A.category); else renderStoreList(); break;
-    case "new-cat": saveNew(A.newStore, el.dataset.c); break;
-    case "cancel-new": A.newStore = null; renderStoreList(); break;
+    case "save-where": saveWhere(); break;
     case "toggle-opts": readOpts(); A.showOpts = !A.showOpts; $("#w-opts").hidden = !A.showOpts;
-      el.textContent = A.showOpts ? "Done" : "Change"; el.setAttribute("aria-expanded", A.showOpts); $("#w-sum").textContent = optsSummary(); break;
-    case "o-split": A.split = el.dataset.v; document.querySelectorAll("#o-split button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === A.split));
-      $("#o-split-help").textContent = A.split === "full" ? `${PEOPLE[other(A.payer)]} pays back the whole ${fmt(A.cents)}.` : `${PEOPLE[other(A.payer)]} owes ${fmt(Math.round(A.cents / 2))}.`;
-      $("#w-sum").textContent = optsSummary(); break;
+      el.setAttribute("aria-expanded", A.showOpts); el.lastElementChild.textContent = A.showOpts ? "▴" : "▾"; $("#w-sum").textContent = optsSummary(); break;
     case "edit": { const e = S.expenses.find(x => x.id === el.dataset.id); if (e) openEdit(e); break; }
     case "e-payer": E.payer = el.dataset.p; document.querySelectorAll("#e-payer button").forEach(b => b.setAttribute("aria-pressed", b.dataset.p === E.payer)); break;
     case "e-split": E.split = el.dataset.v; document.querySelectorAll("#e-split button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === E.split)); break;
@@ -529,9 +552,12 @@ document.addEventListener("click", ev => {
 document.addEventListener("change", ev => {
   const t = ev.target;
   if (t.name === "payer") A.payer = t.value;
+  if (t.name === "store") { A.sel = t.value; $("#w-err").hidden = true; if (A.sel === NEW) { A.newCat = A.newCat || A.category || ""; renderStoreList(); } else $("#w-save").textContent = saveLabel(); }
+  if (t.id === "w-cat") { A.newCat = t.value; t.removeAttribute("aria-invalid"); $("#w-err").hidden = true; }
+  if (t.name === "o-split") { A.split = t.value; $("#o-split-help").textContent = splitHelp(); $("#w-sum").textContent = optsSummary(); }
 });
 document.addEventListener("input", ev => {
-  if (ev.target.id === "w-q") { A.q = ev.target.value; A.newStore = null; renderStoreList(); }
+  if (ev.target.id === "w-q") { A.q = ev.target.value; renderStoreList(); }
   if (["o-date", "o-cat", "o-note", "o-covers"].includes(ev.target.id)) { readOpts(); const s = $("#w-sum"); if (s) s.textContent = optsSummary(); }
 });
 document.addEventListener("keydown", ev => {
@@ -541,9 +567,12 @@ document.addEventListener("keydown", ev => {
     else if (ev.key === "Enter") { amountNext(); ev.preventDefault(); }
   }
   if (ev.key === "Escape" && !$("#layer").hidden) closeScreen();
-  if (ev.key === "Enter" && ev.target.id === "w-q" && A.q.trim()) { ev.preventDefault();
-    const list = topStores(A.q), exact = list.find(m => m.name.toLowerCase() === A.q.trim().toLowerCase());
-    if (exact) saveNew(exact.name, exact.category); else { A.newStore = A.q.trim(); renderStoreList(); } }
+  if (ev.key === "Enter" && ev.target.id === "w-q") { ev.preventDefault();
+    const q = cleanQ(); if (!q) return;
+    const exact = storeList(q).find(m => m.name.toLowerCase() === q.toLowerCase()), want = exact ? exact.id : NEW;
+    if (A.sel === want && (want !== NEW || A.newCat)) { saveWhere(); return; }
+    A.sel = want; if (want === NEW) A.newCat = A.newCat || A.category || "";
+    renderStoreList(); if (want === NEW) { const s = $("#w-cat"); if (s) s.focus(); } }
 });
 document.addEventListener("submit", async ev => {
   if (ev.target.id !== "login-form") return;

@@ -61,12 +61,13 @@ def keys(pg, s):
 def current_payer(pg): return pg.evaluate("document.querySelector('input[name=payer]:checked').value")
 def set_payer(pg, who): pg.check(f'input[name=payer][value={who}]')
 def next_step(pg): pg.click('[data-act=next]'); pg.wait_for_timeout(30)
-def save_at_store(pg, store_id): pg.click(f'[data-act=store][data-id="{store_id}"]'); pg.wait_for_timeout(100)
+def save_at_store(pg, store_id):
+    pg.fill('#w-q', ''); pg.check(f'input[name=store][value="{store_id}"]'); pg.click('#w-save'); pg.wait_for_timeout(100)
 def save_new_store(pg, name, category):
-    pg.fill('#w-q', name); pg.wait_for_timeout(50); pg.click('[data-act=new-store]'); pg.wait_for_timeout(50)
-    pg.click(f'[data-act=new-cat][data-c="{category}"]'); pg.wait_for_timeout(100)
+    pg.fill('#w-q', name); pg.wait_for_timeout(50); pg.check('input[name=store][value=__new__]'); pg.wait_for_timeout(50)
+    pg.select_option('#w-cat', category); pg.click('#w-save'); pg.wait_for_timeout(100)
 def open_details(pg): pg.click('[data-act=toggle-opts]')
-def set_split(pg, v): pg.click(f'[data-act=o-split][data-v={v}]')
+def set_split(pg, v): pg.check(f'input[name=o-split][value={v}]')
 def go_home(pg): pg.click('[data-act=home]'); pg.wait_for_timeout(50)
 def open_history(pg): pg.click('[data-act=history]'); pg.wait_for_timeout(50)
 def open_account(pg): open_history(pg)
