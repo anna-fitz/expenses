@@ -4,7 +4,7 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendP
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, query, where,
   orderBy, limit, onSnapshot, setDoc, getDoc, getDocs, writeBatch, increment }
   from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { fmt, iso, todayISO, parseISO, daysBetween, shortDate, longDate, dayLabel, timeOf, greeting, balanceLine, sinceLine, savedLine, activityLine, C, COLOR_NAMES, EMOJI_NAMES, colorMoved } from "./copy.js";
+import { fmt, iso, todayISO, parseISO, daysBetween, shortDate, longDate, dayLabel, timeOf, greeting, balanceLine, sinceLine, savedLine, activityLine, storeExists, mergeHelp, C, COLOR_NAMES, EMOJI_NAMES, colorMoved } from "./copy.js";
 import { slug, canonicalSlug, canonicalName, pickerStores, removedStores, planRename } from "./stores.js";
 import { esc, openLayer, closeLayer, resetLayer, keepFocus, announce, setTitle, toast, hideToast } from "./ui.js";
 
@@ -131,6 +131,8 @@ function renderProfile() {
           ${[["system", "Match phone"], ["light", "Light"], ["dark", "Dark"]].map(([v, l]) => `<label><input type="radio" name="p-theme" value="${v}" ${p.theme === v ? "checked" : ""}><span>${l}</span></label>`).join("")}
         </div></fieldset></section>
       ${statsHTML()}
+      <section aria-labelledby="h-lists"><h2 id="h-lists" class="sec">Shared lists</h2>
+        <div class="btnrow" style="margin-top:0"><button class="btn" data-act="open-stores">Stores</button><button class="btn" data-act="open-bills">Bills</button></div></section>
       <section aria-labelledby="h-acct"><h2 id="h-acct" class="sec">Account</h2>
         <div class="card"><p style="margin:0 0 4px;font-weight:600">Signed in as ${esc(PEOPLE[me])}</p>
           <p class="muted small" style="margin:0">${esc(S.user ? S.user.email : "")}</p>
@@ -166,6 +168,138 @@ function saveProfile(patch) {
   S.profiles[S.me] = next; applyPersonColors(); applyTheme(next.theme);
   setDoc(doc(db, "config", `profile-${S.me}`), next, { merge: true }).catch(writeFailed);
   renderProfile(); render();
+}
+
+/* ---------------- Shared lists: stores ---------------- */
+const M = { q: "", id: null, confirmRemove: false, mergeQ: "", mergeSel: null };
+const mref = id => doc(db, "merchants", id);
+function patchLocal(id, patch) { S.merchants = Object.assign({}, S.merchants, { [id]: Object.assign({}, S.merchants[id] || {}, patch) }); }
+function storeBatch(fn, entry, msg) {
+  const b = writeBatch(db); fn(b); logEntry(b, Object.assign({ action: "store" }, entry)); b.commit().catch(writeFailed);
+  if (msg) toast(msg);
+}
+function openStores() { M.q = ""; M.id = null; renderStores(); }
+function renderStores() {
+  S.layer = "stores";
+  openLayer(`<div class="frame">
+    <header class="top tall"><div class="inner"><h1 id="layer-title" class="title-lg">Stores</h1></div></header>
+    <div class="scroll"><div class="inner">
+      <label class="label" for="st-q">Search stores</label>
+      <input id="st-q" class="search" autocomplete="off" value="${esc(M.q)}">
+      <div id="st-list"></div>
+    </div></div>
+    <footer class="dock"><div class="inner"><button class="btn" data-act="lists-back">Back</button></div></footer>
+  </div>`);
+  fillStores();
+}
+// Only the list re-renders, so typing in the search box is never interrupted.
+function fillStores() {
+  const box = $("#st-list"); if (!box) return;
+  const list = pickerStores(S.merchants, M.q), removed = removedStores(S.merchants);
+  keepFocus(() => {
+    box.innerHTML = `<div class="rows" style="margin-top:12px">${list.length ? list.map(m => `<button class="row" data-act="store-open" data-id="${esc(m.id)}">
+        <span class="main"><span class="t">${esc(m.name)}</span><span class="s">${esc([m.category, m.alsoCalled ? `also called ${m.alsoCalled}` : ""].filter(Boolean).join(" · "))}</span></span></button>`).join("")
+        : `<p class="muted" style="padding:12px 16px;margin:0">${esc(C.noStores)}</p>`}</div>`
+      + (removed.length ? `<h2 class="sec">Removed stores</h2><ul class="rows plain">${removed.map(m => `<li class="row"><span class="main"><span class="t">${esc(m.name)}</span></span>
+        <button class="btn fit" data-act="store-restore" data-id="${esc(m.id)}" aria-label="Bring back ${esc(m.name)}">Bring back</button></li>`).join("")}</ul>` : "");
+  }, "#st-q");
+}
+function openStore(id) { Object.assign(M, { id, confirmRemove: false, mergeQ: "", mergeSel: null }); renderStore(); }
+function renderStore() {
+  const m = S.merchants[M.id]; if (!m) return renderStores();
+  S.layer = "store";
+  openLayer(`<div class="frame">
+    <header class="top tall"><div class="inner"><h1 id="layer-title" class="title-lg">${esc(m.name)}</h1></div></header>
+    <div class="scroll"><div class="inner">
+      <label class="label" for="sd-name">Name</label>
+      <input id="sd-name" class="input" value="${esc(m.name)}" autocapitalize="words" autocomplete="off">
+      <p class="err left" id="sd-err" hidden></p>
+      <div id="sd-conflict" hidden></div>
+      <button class="btn" style="width:100%;margin-top:10px" data-act="store-rename">Save name</button>
+      <label class="label" for="sd-cat">Usual category</label>
+      <select id="sd-cat" class="input">${CATEGORIES.map(c => `<option ${m.category === c ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>
+      <section aria-labelledby="h-merge"><h2 id="h-merge" class="sec">Merge into another store</h2>
+        <p class="help" style="margin:0 0 8px">${esc(mergeHelp(m.name))}</p>
+        <label class="label" for="sm-q">Search stores</label>
+        <input id="sm-q" class="search" autocomplete="off" value="${esc(M.mergeQ)}">
+        <p class="err left" id="sm-err" hidden></p>
+        <div id="sm-list"></div>
+        <button class="btn" style="width:100%;margin-top:10px" data-act="store-merge" id="sm-go" aria-describedby="sm-err">${esc(mergeLabel())}</button>
+      </section>
+      <section aria-labelledby="h-remove"><h2 id="h-remove" class="sec">Remove</h2>
+        <p class="help" style="margin:0 0 8px">${esc(C.removeHelp)}</p>
+        <button class="btn danger" style="width:100%" data-act="store-remove" id="sd-remove">Remove store</button></section>
+    </div></div>
+    <footer class="dock"><div class="inner"><button class="btn" data-act="store-back">Back</button></div></footer>
+  </div>`);
+  fillMergeList();
+}
+function mergeLabel() { const t = M.mergeSel && S.merchants[M.mergeSel]; return t ? `Merge into ${t.name}` : "Merge into another store"; }
+function fillMergeList() {
+  const box = $("#sm-list"); if (!box) return;
+  const list = pickerStores(S.merchants, M.mergeQ).filter(s => s.id !== M.id);
+  if (M.mergeSel && !list.some(s => s.id === M.mergeSel)) M.mergeSel = null;
+  keepFocus(() => {
+    box.innerHTML = list.length ? `<fieldset class="fs" aria-describedby="sm-err"><legend class="sr">Store to merge into</legend><div class="grid">${list.map(s =>
+      `<label class="store"><input type="radio" name="merge-target" value="${esc(s.id)}" ${M.mergeSel === s.id ? "checked" : ""}>
+        <span>${esc(s.name)}<small>${esc(s.category)}</small></span><span class="tick" aria-hidden="true">✓</span></label>`).join("")}</div></fieldset>`
+      : `<p class="muted">${esc(C.noStores)}</p>`;
+  }, "#sm-q");
+  const go = $("#sm-go"); if (go) go.textContent = mergeLabel();
+}
+function renameStore() {
+  const m = S.merchants[M.id], input = $("#sd-name"), err = $("#sd-err"), conflict = $("#sd-conflict");
+  const plan = planRename(S.merchants, M.id, input.value);
+  input.removeAttribute("aria-invalid"); input.removeAttribute("aria-describedby"); err.hidden = true; conflict.hidden = true;
+  if (plan.kind === "empty") {
+    err.textContent = C.enterName; err.hidden = false;
+    input.setAttribute("aria-invalid", "true"); input.setAttribute("aria-describedby", "sd-err"); input.focus(); return;
+  }
+  if (plan.kind === "conflict") {
+    conflict.innerHTML = `<p class="help">${esc(storeExists(plan.targetName))}</p>
+      <button class="btn" style="width:100%" data-act="store-merge-into" data-id="${esc(plan.targetId)}">Merge into ${esc(plan.targetName)}</button>`;
+    conflict.hidden = false; announce(storeExists(plan.targetName)); conflict.querySelector("button").focus(); return;
+  }
+  if (plan.name === m.name) return;
+  const summary = { name: m.name, to: plan.name };
+  if (plan.kind === "same") {
+    storeBatch(b => b.set(mref(M.id), { name: plan.name }, { merge: true }), { kind: "rename", summary }, C.storeRenamed);
+    patchLocal(M.id, { name: plan.name });
+  } else {
+    const fresh = { name: plan.name, category: m.category || "Other", count: m.count || 0, hidden: false, mergedInto: null };
+    storeBatch(b => { b.set(mref(plan.newId), fresh, { merge: true }); b.set(mref(M.id), { hidden: true, mergedInto: plan.newId }, { merge: true }); },
+      { kind: "rename", summary }, C.storeRenamed);
+    patchLocal(plan.newId, fresh); patchLocal(M.id, { hidden: true, mergedInto: plan.newId }); M.id = plan.newId;
+  }
+  renderStore();
+}
+function mergeStore(targetId) {
+  const m = S.merchants[M.id], t = targetId && S.merchants[targetId];
+  if (!t) {
+    const e = $("#sm-err"); e.textContent = C.pickMerge; e.hidden = false; announce(C.pickMerge);
+    ($("#sm-list input") || $("#sm-q")).focus(); return;
+  }
+  storeBatch(b => { b.set(mref(M.id), { hidden: true, mergedInto: targetId }, { merge: true }); b.set(mref(targetId), { count: increment(m.count || 0) }, { merge: true }); },
+    { kind: "merge", summary: { name: m.name, to: t.name } }, C.storesMerged);
+  patchLocal(M.id, { hidden: true, mergedInto: targetId }); patchLocal(targetId, { count: (t.count || 0) + (m.count || 0) });
+  M.id = null; renderStores();
+}
+function setStoreCategory(cat) {
+  const m = S.merchants[M.id]; if (!m || m.category === cat) return;
+  storeBatch(b => b.set(mref(M.id), { category: cat }, { merge: true }),
+    { kind: "category", summary: { name: m.name }, changes: [{ field: "category", from: m.category || "", to: cat }] }, C.categorySaved);
+  patchLocal(M.id, { category: cat });
+}
+function removeStore() {
+  const btn = $("#sd-remove"), m = S.merchants[M.id];
+  if (!M.confirmRemove) { M.confirmRemove = true; btn.textContent = "Tap again to remove"; return; }
+  storeBatch(b => b.set(mref(M.id), { hidden: true }, { merge: true }), { kind: "remove", summary: { name: m.name } }, C.storeRemoved);
+  patchLocal(M.id, { hidden: true }); M.id = null; renderStores();
+}
+function restoreStore(id) {
+  const m = S.merchants[id]; if (!m) return;
+  storeBatch(b => b.set(mref(id), { hidden: false }, { merge: true }), { kind: "restore", summary: { name: m.name } }, C.storeBack);
+  patchLocal(id, { hidden: false }); fillStores();
 }
 
 /* ---------------- Activity log ---------------- */
@@ -655,6 +789,15 @@ document.addEventListener("click", ev => {
     case "settle": openSettle(); break;
     case "settle-go": settleGo(); break;
     case "profile": openProfile(); break;
+    case "open-stores": openStores(); break;
+    case "lists-back": openProfile(); break;
+    case "store-open": openStore(el.dataset.id); break;
+    case "store-back": M.id = null; renderStores(); break;
+    case "store-rename": renameStore(); break;
+    case "store-merge": mergeStore(M.mergeSel); break;
+    case "store-merge-into": mergeStore(el.dataset.id); break;
+    case "store-remove": removeStore(); break;
+    case "store-restore": restoreStore(el.dataset.id); break;
     case "history": S.view = "history"; if (S.historyTab === "activity" && !S.activityUnsub) subscribeActivity(); render(); break;
     case "more-activity": S.activityLimit += 100; subscribeActivity(); break;
     case "home": S.view = "home"; render(); break;
@@ -670,6 +813,8 @@ document.addEventListener("click", ev => {
 document.addEventListener("change", ev => {
   const t = ev.target;
   if (t.name === "payer") A.payer = t.value;
+  if (t.id === "sd-cat") setStoreCategory(t.value);
+  if (t.name === "merge-target") { M.mergeSel = t.value; $("#sm-err").hidden = true; $("#sm-go").textContent = mergeLabel(); }
   if (t.name === "h-tab") { S.historyTab = t.value; if (t.value === "activity" && !S.activityUnsub) subscribeActivity(); render(); }
   if (t.name === "p-emoji") saveProfile({ emoji: t.value || null });
   if (t.name === "p-color") saveProfile({ color: t.value });
@@ -681,6 +826,8 @@ document.addEventListener("change", ev => {
   if (t.name === "o-split") { A.split = t.value; $("#o-split-help").textContent = splitHelp(); $("#w-sum").textContent = optsSummary(); }
 });
 document.addEventListener("input", ev => {
+  if (ev.target.id === "st-q") { M.q = ev.target.value; fillStores(); }
+  if (ev.target.id === "sm-q") { M.mergeQ = ev.target.value; fillMergeList(); }
   if (ev.target.id === "w-q") { A.q = ev.target.value; renderStoreList(); }
   if (["o-date", "o-cat", "o-note", "o-covers"].includes(ev.target.id)) { readOpts(); const s = $("#w-sum"); if (s) s.textContent = optsSummary(); }
 });
@@ -691,6 +838,7 @@ document.addEventListener("keydown", ev => {
     else if (ev.key === "Enter" && !ev.target.closest("button, input, select, a")) { amountNext(); ev.preventDefault(); }
   }
   if (ev.key === "Escape" && !$("#layer").hidden) closeScreen();
+  if (ev.key === "Enter" && ev.target.id === "sd-name") { ev.preventDefault(); renameStore(); }
   if (ev.key === "Enter" && ev.target.id === "w-q") { ev.preventDefault();
     const q = cleanQ(); if (!q) return;
     const exact = pickerStores(S.merchants, q).find(m => m.exact), want = exact ? exact.id : NEW;
@@ -739,6 +887,7 @@ function subscribe() {
   S.unsubs.push(onSnapshot(collection(db, "merchants"), snap => {
     const m = {}; snap.docs.forEach(d => { m[d.id] = d.data(); }); S.merchants = m;
     if (A.step === "where") renderStoreList();
+    if (S.layer === "stores") fillStores(); if (S.layer === "store") fillMergeList();
     render();
   }, err));
   for (const p of ["bre", "kyle"]) S.unsubs.push(onSnapshot(doc(db, "config", `profile-${p}`), snap => {

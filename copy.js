@@ -63,9 +63,21 @@ export function activityLine(a, names, canon = n => n) {
       return `${who} changed ${canon(s.merchant)}: ${ch.slice(0, 3).join(", ")}${ch.length > 3 ? `, and ${ch.length - 3} more` : ""}`;
     }
     case "settle": return s.amountCents ? `${who} settled up: ${names[s.from]} paid ${names[s.to]} ${fmt(s.amountCents)}` : `${who} closed an even period`;
+    case "store": {
+      const n = s.name, c = (a.changes || [])[0] || {};
+      if (a.kind === "rename") return `${who} renamed ${n} to ${s.to}`;
+      if (a.kind === "merge") return `${who} merged ${n} into ${s.to}`;
+      if (a.kind === "category") return `${who} changed ${n}’s usual category: ${c.from} → ${c.to}`;
+      if (a.kind === "remove") return `${who} removed the store ${n}`;
+      if (a.kind === "restore") return `${who} brought back the store ${n}`;
+      break;
+    }
   }
   return `${who} made a change`;
 }
+
+export const storeExists = name => `There’s already a store called ${name}.`;
+export const mergeHelp = name => `Past expenses at ${name} will show and count under the store you pick.`;
 
 /* ---------- Fixed strings ---------- */
 export const C = {
@@ -75,6 +87,9 @@ export const C = {
   removed: "Removed.",
   changesSaved: "Changes saved.",
   noChanges: "Nothing changed.",
+  storeRenamed: "Store renamed.", storesMerged: "Stores merged.", storeRemoved: "Store removed.", storeBack: "Store is back.",
+  categorySaved: "Category saved.", enterName: "Enter a name", pickMerge: "Pick a store to merge into", noStores: "No stores match.",
+  removeHelp: "It disappears from the store picker. Past expenses keep their name, and you can bring it back from the Stores list.",
   emptyActivity: "Changes to expenses will show up here.",
   activityError: "Couldn’t load activity. Check the security rules in Firebase.",
   statsHeading: "This period",
