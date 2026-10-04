@@ -12,6 +12,7 @@ Only the two accounts listed in the database's security rules can sign in and se
 - The balance covers everything since the last settle-up. Settling up records the payment and starts a fresh balance.
 - Regular bills are one-tap buttons, with a warning when a bill is unusually high.
 - Each person has a profile (emoji, color, light or dark theme), and History keeps a log of every change.
+- Stores and bills can be renamed, merged, retired, or brought back from Profile → Shared lists, and the app asks before saving a likely duplicate.
 - Built to meet WCAG 2.2 Level A accessibility.
 
 ## What's in this repository
@@ -21,6 +22,7 @@ Only the two accounts listed in the database's security rules can sign in and se
 | `index.html` | The page and all the styling |
 | `app.js` | The screens and the app's logic |
 | `copy.js` | Every word the app shows, plus money and date formatting. Edit the voice here. |
+| `stores.js` | Store names: aliases after a rename or merge, and the store lists |
 | `ui.js` | Accessibility helpers: screens, focus, announcements, the undo message |
 | `sw.js` | Offline support (saves the app on the phone) |
 | `manifest.webmanifest` | Name, colors, and icons for the home-screen app |
