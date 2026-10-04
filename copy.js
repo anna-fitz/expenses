@@ -53,14 +53,14 @@ function showVal(field, v, names) {
   if (field === "date") return shortDate(v);
   return String(v);
 }
-export function activityLine(a, names) {
+export function activityLine(a, names, canon = n => n) {
   const who = names[a.by] || "Someone", s = a.summary || {};
   switch (a.action) {
-    case "add": return `${who} added ${fmt(s.amountCents)} at ${s.merchant}`;
-    case "delete": return `${who} deleted ${fmt(s.amountCents)} at ${s.merchant}`;
+    case "add": return `${who} added ${fmt(s.amountCents)} at ${canon(s.merchant)}`;
+    case "delete": return `${who} deleted ${fmt(s.amountCents)} at ${canon(s.merchant)}`;
     case "edit": {
       const ch = (a.changes || []).map(c => `${FIELD_NAMES[c.field] || c.field} ${showVal(c.field, c.from, names)} → ${showVal(c.field, c.to, names)}`);
-      return `${who} changed ${s.merchant}: ${ch.slice(0, 3).join(", ")}${ch.length > 3 ? `, and ${ch.length - 3} more` : ""}`;
+      return `${who} changed ${canon(s.merchant)}: ${ch.slice(0, 3).join(", ")}${ch.length > 3 ? `, and ${ch.length - 3} more` : ""}`;
     }
     case "settle": return s.amountCents ? `${who} settled up: ${names[s.from]} paid ${names[s.to]} ${fmt(s.amountCents)}` : `${who} closed an even period`;
   }

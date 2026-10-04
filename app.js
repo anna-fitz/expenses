@@ -5,6 +5,7 @@ import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager
   orderBy, limit, onSnapshot, setDoc, getDoc, getDocs, writeBatch, increment }
   from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 import { fmt, iso, todayISO, parseISO, daysBetween, shortDate, longDate, dayLabel, timeOf, greeting, balanceLine, sinceLine, savedLine, activityLine, C, COLOR_NAMES, EMOJI_NAMES, colorMoved } from "./copy.js";
+import { slug, canonicalSlug, canonicalName, pickerStores, removedStores, planRename } from "./stores.js";
 import { esc, openLayer, closeLayer, resetLayer, keepFocus, announce, setTitle, toast, hideToast } from "./ui.js";
 
 /* ---------------- Config ---------------- */
@@ -59,7 +60,6 @@ const S = { user: null, me: null, view: "home", expenses: [], merchants: {}, bil
   loaded: false, pending: false, online: navigator.onLine, unsubs: [], layer: null, profiles: {},
   historyTab: "settle", activity: [], activityLimit: 100, activityLoaded: false, activityError: false, activityUnsub: null };
 const $ = s => document.querySelector(s);
-const slug = s => String(s).toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80) || "store";
 function toCents(str) {
   const v = String(str).replace(/[$,\s]/g, "");
   if (!/^\d*(\.\d{0,2})?$/.test(v) || v === "" || v === ".") return null;
@@ -144,7 +144,7 @@ function periodStats() {
   const list = S.expenses; if (!list.length) return null;
   const last = S.settlements[0], start = last ? last.date : list.map(e => e.date).sort()[0];
   const by = {};
-  for (const e of list) { const m = by[e.merchant] = by[e.merchant] || { name: e.merchant, count: 0, cents: 0 }; m.count++; m.cents += e.amountCents | 0; }
+  for (const e of list) { const n = canonicalName(S.merchants, e.merchant); const m = by[n] = by[n] || { name: n, count: 0, cents: 0 }; m.count++; m.cents += e.amountCents | 0; }
   return {
     days: daysBetween(start, todayISO()), since: last ? "settle" : "first",
     total: list.reduce((s, e) => s + (e.amountCents | 0), 0),
@@ -158,7 +158,7 @@ function statsHTML() {
     <div class="stat"><dt>${esc(s.since === "settle" ? C.statDaysSettle : C.statDaysFirst)}</dt><dd>${s.days}</dd></div>
     <div class="stat"><dt>${esc(C.statTotal)}</dt><dd>${fmt(s.total)}</dd></div>
     <div class="stat"><dt>${esc(C.statTop)}</dt><dd>${esc(s.top.name)}<small>${s.top.count} expense${s.top.count === 1 ? "" : "s"}</small></dd></div>
-    <div class="stat"><dt>${esc(C.statBig)}</dt><dd>${fmt(s.big.amountCents)}<small>${esc(s.big.merchant)}</small></dd></div></dl>`;
+    <div class="stat"><dt>${esc(C.statBig)}</dt><dd>${fmt(s.big.amountCents)}<small>${esc(canonicalName(S.merchants, s.big.merchant))}</small></dd></div></dl>`;
   return `<section aria-labelledby="h-stats"><h2 id="h-stats" class="sec">${esc(C.statsHeading)}</h2>${body}</section>`;
 }
 function saveProfile(patch) {
@@ -284,7 +284,7 @@ function homeHTML() {
 function rowHTML(e, editable) {
   const sub = [PEOPLE[e.payer] + " paid", e.category, e.covers].filter(Boolean).join(", ");
   const inner = `${avatarHTML(e.payer, 28)}
-    <span class="main"><span class="t">${esc(e.merchant)}${e.note ? ` <span class="muted" style="font-weight:400">${esc(e.note)}</span>` : ""}</span>
+    <span class="main"><span class="t">${esc(canonicalName(S.merchants, e.merchant))}${e.note ? ` <span class="muted" style="font-weight:400">${esc(e.note)}</span>` : ""}</span>
     <span class="s">${esc(sub)}</span></span>
     <span class="amt">${fmt(e.amountCents)}${e.split === "full" ? `<br><span class="tag">Owed in full</span>` : ""}</span>`;
   return editable ? `<button class="row" data-act="edit" data-id="${esc(e.id)}">${inner}</button>` : `<div class="row">${inner}</div>`;
@@ -316,7 +316,7 @@ function activityHTML() {
   for (const a of S.activity) {
     const day = iso(new Date(a.at));
     if (day !== cur) { if (cur !== null) out += `</ul></section>`; cur = day; out += `<section class="group"><h2>${esc(dayLabel(day))}</h2><ul class="rows plain">`; }
-    out += `<li class="row act"><span class="main"><span class="t wrap">${esc(activityLine(a, PEOPLE))}</span><span class="s">${esc(timeOf(a.at))}</span></span></li>`;
+    out += `<li class="row act"><span class="main"><span class="t wrap">${esc(activityLine(a, PEOPLE, n => canonicalName(S.merchants, n)))}</span><span class="s">${esc(timeOf(a.at))}</span></span></li>`;
   }
   out += `</ul></section>`;
   if (S.activity.length >= S.activityLimit) out += `<button class="btn" data-act="more-activity" style="width:100%;margin-top:14px">Show more</button>`;
@@ -411,12 +411,6 @@ function amountNext() {
 
 /* ---------------- Add flow: step 2 where ---------------- */
 const NEW = "__new__";
-function storeList(q) {
-  const ql = q.trim().toLowerCase();
-  return Object.entries(S.merchants).map(([id, m]) => Object.assign({ id }, m))
-    .filter(m => m.name && (!ql || m.name.toLowerCase().includes(ql)))
-    .sort((a, b) => a.name.localeCompare(b.name, "en", { sensitivity: "base" }));
-}
 const cleanQ = () => A.q.trim().replace(/\s+/g, " ");
 function optsSummary() {
   return [A.date === todayISO() ? "Today" : shortDate(A.date), A.split === "full" ? "owed in full" : "split 50/50", A.category || "usual category"].join(" · ");
@@ -462,13 +456,13 @@ function optsPanelHTML() {
 }
 function renderStoreList() {
   const box = $("#w-list"); if (!box) return;
-  const q = cleanQ(), list = storeList(q);
-  const exact = list.find(m => m.name.toLowerCase() === q.toLowerCase());
+  const q = cleanQ(), list = pickerStores(S.merchants, q);
+  const exact = list.find(m => m.exact);
   if (A.sel && A.sel !== NEW && !list.some(m => m.id === A.sel)) A.sel = null;   // never keep a hidden selection
   if (A.sel === NEW && (!q || exact)) A.sel = null;
   const tile = (value, label, sub) => `<label class="store${value === NEW ? " new" : ""}"><input type="radio" name="store" value="${esc(value)}" ${A.sel === value ? "checked" : ""}>
     <span>${label}${sub ? `<small>${esc(sub)}</small>` : ""}</span><span class="tick" aria-hidden="true">✓</span></label>`;
-  const tiles = (q && !exact ? [tile(NEW, `Add ${esc(q)} as a new store`, "")] : []).concat(list.map(m => tile(m.id, esc(m.name), m.category || "")));
+  const tiles = (q && !exact ? [tile(NEW, `Add ${esc(q)} as a new store`, "")] : []).concat(list.map(m => tile(m.id, esc(m.name), [m.category, m.alsoCalled ? `also called ${m.alsoCalled}` : ""].filter(Boolean).join(" · "))));
   keepFocus(() => {
     box.innerHTML = (tiles.length
       ? `<fieldset class="fs" aria-describedby="w-err"><legend class="sr">Choose a store</legend><div class="grid">${tiles.join("")}</div></fieldset>`
@@ -520,7 +514,7 @@ function saveNew(name, category, extra = {}) {
   ]);
 }
 function learnStore(name, category) {
-  setDoc(doc(db, "merchants", slug(name)), { name, category, count: increment(1), lastUsed: Date.now() }, { merge: true }).catch(() => {});
+  setDoc(doc(db, "merchants", slug(name)), { name, category, count: increment(1), lastUsed: Date.now(), hidden: false }, { merge: true }).catch(() => {});
 }
 
 /* ---------------- Edit (full form, the rare path) ---------------- */
@@ -534,7 +528,7 @@ function openEdit(e) {
       <label class="label" for="e-amt">Amount</label><input id="e-amt" class="input" inputmode="decimal" value="${(e.amountCents / 100).toFixed(2)}">
       <p class="err left" id="e-err" hidden></p>
       <div style="margin-top:14px">${payerFieldset("e-payer", E.payer)}</div>
-      <label class="label" for="e-store">Store</label><input id="e-store" class="input" value="${esc(e.merchant)}" autocapitalize="words">
+      <label class="label" for="e-store">Store</label><input id="e-store" class="input" value="${esc(canonicalName(S.merchants, e.merchant))}" autocapitalize="words">
       <label class="label" for="e-cat">Category</label>
       <select id="e-cat" class="input">${CATEGORIES.map(c => `<option ${e.category === c ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>
       <label class="label" for="e-date">Date</label><input id="e-date" class="input" type="date" value="${esc(e.date)}">
@@ -558,8 +552,9 @@ function saveEdit() {
   if (!name) return fail("Add where it was from", "e-store");
   const data = { amountCents: c, payer: E.payer, merchant: name.slice(0, 80), category: $("#e-cat").value, date: $("#e-date").value || todayISO(),
     split: E.split, note: $("#e-note").value.trim().slice(0, 140), covers: $("#e-covers").value.trim().slice(0, 60), updatedAt: Date.now(), updatedBy: S.me };
-  const changes = EDIT_FIELDS.filter(f => (E.orig[f] ?? "") !== (data[f] ?? ""))
-    .map(f => ({ field: f, from: E.orig[f] ?? "", to: data[f] ?? "" }));
+  const base = Object.assign({}, E.orig, { merchant: canonicalName(S.merchants, E.orig.merchant) });
+  const changes = EDIT_FIELDS.filter(f => (base[f] ?? "") !== (data[f] ?? ""))
+    .map(f => ({ field: f, from: base[f] ?? "", to: data[f] ?? "" }));
   if (!changes.length) { closeScreen(); toast(C.noChanges); return; }
   const batch = writeBatch(db);
   batch.update(doc(db, "expenses", E.id), data);
@@ -698,7 +693,7 @@ document.addEventListener("keydown", ev => {
   if (ev.key === "Escape" && !$("#layer").hidden) closeScreen();
   if (ev.key === "Enter" && ev.target.id === "w-q") { ev.preventDefault();
     const q = cleanQ(); if (!q) return;
-    const exact = storeList(q).find(m => m.name.toLowerCase() === q.toLowerCase()), want = exact ? exact.id : NEW;
+    const exact = pickerStores(S.merchants, q).find(m => m.exact), want = exact ? exact.id : NEW;
     if (A.sel === want && (want !== NEW || A.newCat)) { saveWhere(); return; }
     A.sel = want; if (want === NEW) A.newCat = A.newCat || A.category || "";
     renderStoreList(); if (want === NEW) { const s = $("#w-cat"); if (s) s.focus(); } }
@@ -744,6 +739,7 @@ function subscribe() {
   S.unsubs.push(onSnapshot(collection(db, "merchants"), snap => {
     const m = {}; snap.docs.forEach(d => { m[d.id] = d.data(); }); S.merchants = m;
     if (A.step === "where") renderStoreList();
+    render();
   }, err));
   for (const p of ["bre", "kyle"]) S.unsubs.push(onSnapshot(doc(db, "config", `profile-${p}`), snap => {
     S.profiles[p] = snap.exists() ? snap.data() : {};

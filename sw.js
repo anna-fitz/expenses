@@ -1,6 +1,6 @@
 // Offline support: the app shell loads without a connection; Firestore keeps its own offline data.
 const CACHE = "shared-expenses-v3";
-const SHELL = ["./", "./index.html", "./app.js", "./ui.js", "./copy.js", "./manifest.webmanifest",
+const SHELL = ["./", "./index.html", "./app.js", "./ui.js", "./copy.js", "./stores.js", "./manifest.webmanifest",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png", "./icons/icon-maskable-512.png",
   // The Firebase SDK, so the first offline launch after an update still loads.
   "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js",
