@@ -46,6 +46,7 @@ export function savedLine(amount, merchant, bill) {
 /* ---------- Activity log ---------- */
 const FIELD_NAMES = { amountCents: "amount", payer: "paid by", merchant: "store", category: "category", date: "date", split: "split", note: "note", covers: "covers" };
 function showVal(field, v, names) {
+  if (field === "usualCents") return fmt(v);
   if (v === "" || v == null) return "none";
   if (field === "amountCents") return fmt(v);
   if (field === "payer") return names[v] || v;
@@ -53,15 +54,18 @@ function showVal(field, v, names) {
   if (field === "date") return shortDate(v);
   return String(v);
 }
+const BILL_FIELD_NAMES = { name: "name", usualCents: "usual amount", category: "category", payer: "usually paid by" };
+function changeList(changes, fieldNames, names) {
+  const ch = (changes || []).map(c => `${fieldNames[c.field] || c.field} ${showVal(c.field, c.from, names)} → ${showVal(c.field, c.to, names)}`);
+  return ch.slice(0, 3).join(", ") + (ch.length > 3 ? `, and ${ch.length - 3} more` : "");
+}
+
 export function activityLine(a, names, canon = n => n) {
   const who = names[a.by] || "Someone", s = a.summary || {};
   switch (a.action) {
     case "add": return `${who} added ${fmt(s.amountCents)} at ${canon(s.merchant)}`;
     case "delete": return `${who} deleted ${fmt(s.amountCents)} at ${canon(s.merchant)}`;
-    case "edit": {
-      const ch = (a.changes || []).map(c => `${FIELD_NAMES[c.field] || c.field} ${showVal(c.field, c.from, names)} → ${showVal(c.field, c.to, names)}`);
-      return `${who} changed ${canon(s.merchant)}: ${ch.slice(0, 3).join(", ")}${ch.length > 3 ? `, and ${ch.length - 3} more` : ""}`;
-    }
+    case "edit": return `${who} changed ${canon(s.merchant)}: ${changeList(a.changes, FIELD_NAMES, names)}`;
     case "settle": return s.amountCents ? `${who} settled up: ${names[s.from]} paid ${names[s.to]} ${fmt(s.amountCents)}` : `${who} closed an even period`;
     case "store": {
       const n = s.name, c = (a.changes || [])[0] || {};
@@ -72,12 +76,21 @@ export function activityLine(a, names, canon = n => n) {
       if (a.kind === "restore") return `${who} brought back the store ${n}`;
       break;
     }
+    case "bill": {
+      if (a.kind === "add") return `${who} added the bill ${s.name}, usually ${fmt(s.amountCents)}`;
+      if (a.kind === "edit") return `${who} changed ${s.name}: ${changeList(a.changes, BILL_FIELD_NAMES, names)}`;
+      if (a.kind === "retire") return `${who} retired the bill ${s.name}`;
+      if (a.kind === "restore") return `${who} brought back the bill ${s.name}`;
+      break;
+    }
   }
   return `${who} made a change`;
 }
 
 export const storeExists = name => `There’s already a store called ${name}.`;
 export const mergeHelp = name => `Past expenses at ${name} will show and count under the store you pick.`;
+
+export const billExists = name => `There’s already a bill called ${name}`;
 
 /* ---------- Fixed strings ---------- */
 export const C = {
@@ -87,6 +100,7 @@ export const C = {
   removed: "Removed.",
   changesSaved: "Changes saved.",
   noChanges: "Nothing changed.",
+  billSaved: "Bill saved.", billRetired: "Bill retired.", billBack: "Bill is back.", enterBillAmount: "Enter an amount, like 64.50", noBills: "No active bills.",
   storeRenamed: "Store renamed.", storesMerged: "Stores merged.", storeRemoved: "Store removed.", storeBack: "Store is back.",
   categorySaved: "Category saved.", enterName: "Enter a name", pickMerge: "Pick a store to merge into", noStores: "No stores match.",
   removeHelp: "It disappears from the store picker. Past expenses keep their name, and you can bring it back from the Stores list.",

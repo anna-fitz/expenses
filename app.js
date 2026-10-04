@@ -4,7 +4,7 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendP
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, query, where,
   orderBy, limit, onSnapshot, setDoc, getDoc, getDocs, writeBatch, increment }
   from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { fmt, iso, todayISO, parseISO, daysBetween, shortDate, longDate, dayLabel, timeOf, greeting, balanceLine, sinceLine, savedLine, activityLine, storeExists, mergeHelp, C, COLOR_NAMES, EMOJI_NAMES, colorMoved } from "./copy.js";
+import { fmt, iso, todayISO, parseISO, daysBetween, shortDate, longDate, dayLabel, timeOf, greeting, balanceLine, sinceLine, savedLine, activityLine, storeExists, mergeHelp, billExists, C, COLOR_NAMES, EMOJI_NAMES, colorMoved } from "./copy.js";
 import { slug, canonicalSlug, canonicalName, pickerStores, removedStores, planRename } from "./stores.js";
 import { esc, openLayer, closeLayer, resetLayer, keepFocus, announce, setTitle, toast, hideToast } from "./ui.js";
 
@@ -302,6 +302,87 @@ function restoreStore(id) {
   patchLocal(id, { hidden: false }); fillStores();
 }
 
+/* ---------------- Shared lists: bills ---------------- */
+const B = { id: null, payer: "kyle" };
+const BILL_FIELDS = ["name", "usualCents", "category", "payer"];
+const billsSorted = () => S.bills.slice().sort((a, b) => (a.order || 0) - (b.order || 0));
+function billRow(b) {
+  return `<button class="row" data-act="bill-open" data-id="${esc(b.id)}"><span class="main"><span class="t">${esc(b.name)}</span>
+    <span class="s">${esc(`${fmt(b.usualCents || 0)} · usually ${b.payer === S.me ? "you" : PEOPLE[b.payer] || PEOPLE.kyle}`)}</span></span></button>`;
+}
+function openBills() { renderBills(); }
+function renderBills() {
+  S.layer = "bills";
+  const all = billsSorted(), act = all.filter(b => b.active !== false), ret = all.filter(b => b.active === false);
+  openLayer(`<div class="frame">
+    <header class="top tall"><div class="inner"><h1 id="layer-title" class="title-lg">Bills</h1></div></header>
+    <div class="scroll"><div class="inner">
+      <button class="btn" style="width:100%" data-act="bill-new">Add bill</button>
+      <h2 class="sec">Active bills</h2>
+      <div class="rows" id="bl-active">${act.length ? act.map(billRow).join("") : `<p class="muted" style="padding:12px 16px;margin:0">${esc(C.noBills)}</p>`}</div>
+      ${ret.length ? `<h2 class="sec">Retired bills</h2><div class="rows" id="bl-retired">${ret.map(billRow).join("")}</div>` : ""}
+    </div></div>
+    <footer class="dock"><div class="inner"><button class="btn" data-act="lists-back">Back</button></div></footer>
+  </div>`);
+}
+function openBill(id) {
+  const b = id && S.bills.find(x => x.id === id);
+  B.id = b ? b.id : null; B.payer = b ? (b.payer || "kyle") : "kyle"; renderBill();
+}
+function renderBill() {
+  const b = B.id && S.bills.find(x => x.id === B.id);
+  S.layer = "bill";
+  openLayer(`<div class="frame">
+    <header class="top tall"><div class="inner"><h1 id="layer-title" class="title-lg">${esc(b ? b.name : "Add bill")}</h1></div></header>
+    <div class="scroll"><div class="inner">
+      <p class="err left" id="bf-err" hidden></p>
+      <label class="label" for="bf-name">Name</label><input id="bf-name" class="input" value="${esc(b ? b.name : "")}" autocapitalize="words" autocomplete="off">
+      <label class="label" for="bf-amt">Usual amount</label><input id="bf-amt" class="input" inputmode="decimal" placeholder="64.50" value="${b ? (b.usualCents / 100).toFixed(2) : ""}">
+      <label class="label" for="bf-cat">Category</label>
+      <select id="bf-cat" class="input">${CATEGORIES.map(c => `<option ${(b ? b.category : "Utilities") === c ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>
+      <div style="margin-top:14px">${payerFieldset("bf-payer", B.payer, "Usually paid by")}</div>
+      ${b ? `<button class="btn${b.active === false ? "" : " danger"}" style="width:100%;margin-top:24px" data-act="${b.active === false ? "bill-restore" : "bill-retire"}">${b.active === false ? "Bring back" : "Retire bill"}</button>` : ""}
+    </div></div>
+    <footer class="dock"><div class="inner"><button class="btn" data-act="bill-back">Back</button>
+      <button class="btn primary grow2" data-act="bill-save">Save</button></div></footer>
+  </div>`);
+}
+function saveBill() {
+  const b = B.id && S.bills.find(x => x.id === B.id), err = $("#bf-err");
+  const name = $("#bf-name").value.trim().replace(/\s+/g, " "), cents = toCents($("#bf-amt").value), cat = $("#bf-cat").value;
+  const fail = (msg, id) => {
+    ["bf-name", "bf-amt"].forEach(x => { const f = $("#" + x); f.removeAttribute("aria-invalid"); f.removeAttribute("aria-describedby"); });
+    const f = $("#" + id); f.setAttribute("aria-invalid", "true"); f.setAttribute("aria-describedby", "bf-err");
+    err.textContent = msg; err.hidden = false; f.focus();
+  };
+  if (!name) return fail(C.enterName, "bf-name");
+  const clash = S.bills.find(x => x.id !== B.id && (x.name || "").toLowerCase() === name.toLowerCase());
+  if (clash) return fail(billExists(clash.name), "bf-name");
+  if (!cents || cents > 10000000) return fail(C.enterBillAmount, "bf-amt");
+  const data = { name: name.slice(0, 80), usualCents: cents, category: cat, payer: B.payer };
+  const wb = writeBatch(db);
+  if (!b) {
+    let id = slug(name), n = 2;
+    while (S.bills.some(x => x.id === id)) id = `${slug(name)}-${n++}`;
+    const order = Math.max(0, ...S.bills.map(x => x.order || 0)) + 1;
+    wb.set(doc(db, "bills", id), Object.assign({ order, active: true }, data));
+    logEntry(wb, { action: "bill", kind: "add", summary: { name: data.name, amountCents: cents } });
+  } else {
+    const changes = BILL_FIELDS.filter(f => (b[f] ?? "") !== data[f]).map(f => ({ field: f, from: b[f] ?? "", to: data[f] }));
+    if (!changes.length) { toast(C.noChanges); return renderBills(); }
+    wb.update(doc(db, "bills", b.id), data);
+    logEntry(wb, { action: "bill", kind: "edit", summary: { name: b.name }, changes });
+  }
+  wb.commit().catch(writeFailed); toast(C.billSaved); renderBills();
+}
+function setBillActive(active) {
+  const b = S.bills.find(x => x.id === B.id); if (!b) return;
+  const wb = writeBatch(db);
+  wb.update(doc(db, "bills", b.id), { active });
+  logEntry(wb, { action: "bill", kind: active ? "restore" : "retire", summary: { name: b.name } });
+  wb.commit().catch(writeFailed); toast(active ? C.billBack : C.billRetired); renderBills();
+}
+
 /* ---------------- Activity log ---------------- */
 // One entry per add, edit, delete, or settle-up, written in the same batch as the change.
 // Undo removes the expense and its "add-{id}" entry together, so a corrected mistake leaves no trace.
@@ -482,9 +563,9 @@ function amountDisplay() {
   const int = Number(i || "0").toLocaleString("en-US");
   return `<span class="big">$${int}${d !== undefined ? "." + d : ""}</span>`;
 }
-function payerFieldset(name, value) {
+function payerFieldset(name, value, legend = "Paid by") {
   const order = [S.me, other(S.me)];
-  return `<fieldset class="fs" id="${name}-set"><legend class="label">Paid by</legend><div class="segr">
+  return `<fieldset class="fs" id="${name}-set"><legend class="label">${legend}</legend><div class="segr">
     ${order.map(p => `<label><input type="radio" name="${name}" value="${p}" ${value === p ? "checked" : ""}><span>${p === S.me ? "You" : esc(PEOPLE[p])}</span></label>`).join("")}
   </div></fieldset>`;
 }
@@ -789,6 +870,13 @@ document.addEventListener("click", ev => {
     case "settle": openSettle(); break;
     case "settle-go": settleGo(); break;
     case "profile": openProfile(); break;
+    case "open-bills": openBills(); break;
+    case "bill-new": openBill(null); break;
+    case "bill-open": openBill(el.dataset.id); break;
+    case "bill-back": renderBills(); break;
+    case "bill-save": saveBill(); break;
+    case "bill-retire": setBillActive(false); break;
+    case "bill-restore": setBillActive(true); break;
     case "open-stores": openStores(); break;
     case "lists-back": openProfile(); break;
     case "store-open": openStore(el.dataset.id); break;
@@ -813,6 +901,7 @@ document.addEventListener("click", ev => {
 document.addEventListener("change", ev => {
   const t = ev.target;
   if (t.name === "payer") A.payer = t.value;
+  if (t.name === "bf-payer") B.payer = t.value;
   if (t.id === "sd-cat") setStoreCategory(t.value);
   if (t.name === "merge-target") { M.mergeSel = t.value; $("#sm-err").hidden = true; $("#sm-go").textContent = mergeLabel(); }
   if (t.name === "h-tab") { S.historyTab = t.value; if (t.value === "activity" && !S.activityUnsub) subscribeActivity(); render(); }
@@ -896,7 +985,7 @@ function subscribe() {
     if (S.layer === "profile") renderProfile();
     render();
   }, err));
-  S.unsubs.push(onSnapshot(collection(db, "bills"), snap => { S.bills = snap.docs.map(d => Object.assign({ id: d.id }, d.data())); }, err));
+  S.unsubs.push(onSnapshot(collection(db, "bills"), snap => { S.bills = snap.docs.map(d => Object.assign({ id: d.id }, d.data())); if (S.layer === "bills") renderBills(); }, err));
   S.unsubs.push(onSnapshot(query(collection(db, "settlements"), orderBy("createdAt", "desc"), limit(200)), snap => {
     S.settlements = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
     if ($("#layer").hidden) render();
