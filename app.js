@@ -4,7 +4,7 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendP
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, query, where,
   orderBy, limit, onSnapshot, setDoc, getDoc, getDocs, writeBatch, increment }
   from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { fmt, iso, todayISO, parseISO, daysBetween, shortDate, longDate, dayLabel, timeOf, greeting, balanceLine, sinceLine, savedLine, activityLine, storeExists, mergeHelp, billExists, dupLine, venmoHelp, C, COLOR_NAMES, EMOJI_NAMES, colorMoved } from "./copy.js";
+import { fmt, iso, todayISO, parseISO, daysBetween, shortDate, longDate, dayLabel, timeOf, greeting, balanceLine, sinceLine, savedLine, activityLine, storeExists, mergeHelp, billExists, dupLine, venmoHelp, settleNote, payOnVenmo, requestOnVenmo, noVenmo, C, COLOR_NAMES, EMOJI_NAMES, colorMoved } from "./copy.js";
 import { slug, canonicalSlug, canonicalName, pickerStores, removedStores, planRename } from "./stores.js";
 import { esc, openLayer, closeLayer, resetLayer, keepFocus, announce, setTitle, toast, hideToast } from "./ui.js";
 
@@ -57,7 +57,7 @@ catch (e) { db = initializeFirestore(app, {}); }
 
 /* ---------------- State & helpers ---------------- */
 const S = { user: null, me: null, view: "home", expenses: [], merchants: {}, bills: [], settlements: [],
-  loaded: false, pending: false, online: navigator.onLine, unsubs: [], layer: null, profiles: {}, venmoDraft: null,
+  loaded: false, pending: false, online: navigator.onLine, unsubs: [], layer: null, profiles: {}, venmoDraft: null, venmoChecked: false,
   historyTab: "settle", activity: [], activityLimit: 100, activityLoaded: false, activityError: false, activityUnsub: null };
 const $ = s => document.querySelector(s);
 function toCents(str) {
@@ -536,7 +536,7 @@ function settleListHTML() {
   return `<div class="rows">` + S.settlements.map(s => {
     const line = s.amountCents ? `${PEOPLE[s.from]} paid ${PEOPLE[s.to]} ${fmt(s.amountCents)}` : "Closed even";
     return `<button class="row" data-act="detail" data-id="${esc(s.id)}"><span class="main"><span class="t">${esc(line)}</span>
-      <span class="s">${esc(longDate(s.date))}, ${s.count} expense${s.count === 1 ? "" : "s"}</span></span></button>`;
+      <span class="s">${esc(longDate(s.date))}, ${s.count} expense${s.count === 1 ? "" : "s"}${s.method === "venmo" ? ", via Venmo" : ""}</span></span></button>`;
   }).join("") + `</div>`;
 }
 function activityHTML() {
@@ -866,6 +866,15 @@ function mathHTML(t, o) {
     ${t.breFull ? `<div class="r"><span>Owed in full to Bre</span><span>${fmt(t.breFull)}</span></div>` : ""}
     <div class="r total"><span>${o.from ? esc(PEOPLE[o.from]) + " pays " + esc(PEOPLE[o.to]) : "You’re even"}</span><span>${o.amt}</span></div></div>`;
 }
+const venmoUrl = (user, txn, cents, note) =>
+  `https://venmo.com/${encodeURIComponent(user)}?txn=${txn}&amount=${(cents / 100).toFixed(2)}&note=${encodeURIComponent(note)}`;
+function venmoBlockHTML(t, o, note) {
+  if (!t.net) return "";
+  const cents = Math.abs(t.net), amount = fmt(cents), iPay = o.from === S.me, other = iPay ? o.to : o.from, user = profileOf(other).venmo;
+  if (!user) return `<p class="help">${esc(noVenmo(PEOPLE[other]))}</p>`;
+  const txn = iPay ? "pay" : "charge";
+  return `<a class="btn venmo" href="${esc(venmoUrl(user, txn, cents, note))}" target="_blank" rel="noopener" data-act="venmo" data-txn="${txn}">${esc(iPay ? payOnVenmo(PEOPLE[other], amount) : requestOnVenmo(PEOPLE[other], amount))}</a>`;
+}
 function openSettle() {
   S.layer = "settle";
   settleArmed = false;
@@ -876,6 +885,7 @@ function openSettle() {
     <div class="scroll"><div class="inner">
       <p class="muted" style="margin:0 0 14px">${list.length} expense${list.length === 1 ? "" : "s"} ${esc(range)}</p>
       ${mathHTML(t, o)}
+      <div id="s-venmo" style="margin-top:14px">${venmoBlockHTML(t, o, settleNote(dates[0], dates[dates.length - 1]))}</div>
       <p class="help" style="margin-top:14px">Marking as paid starts a fresh balance. Everything stays in History.</p>
     </div></div>
     <footer class="dock"><div class="inner"><button class="btn" data-act="close">Cancel</button>
@@ -883,19 +893,40 @@ function openSettle() {
   </div>`);
 }
 function settleGo() {
-  const list = S.expenses.slice(), t = calc(list), o = owes(t.net);
+  const t = calc(S.expenses), o = owes(t.net);
   if (!settleArmed) { settleArmed = true; $("#s-go").textContent = t.net ? `Confirm ${PEOPLE[o.from]} paid ${o.amt}` : "Confirm"; return; }
-  const dates = list.map(e => e.date).sort();
+  recordSettlement(null);
+}
+// The one place a settle-up is written: settlement + activity entry + expenses marked settled.
+function recordSettlement(method) {
+  const list = S.expenses.slice(), t = calc(list), o = owes(t.net), dates = list.map(e => e.date).sort();
   const sref = doc(collection(db, "settlements"));
   const rec = { date: todayISO(), createdAt: Date.now(), by: S.me, from: o.from || null, to: o.to || null, amountCents: Math.abs(t.net),
     kyleHalf: t.kyleHalf, breHalf: t.breHalf, kyleFull: t.kyleFull, breFull: t.breFull, count: list.length,
     periodStart: dates[0], periodEnd: dates[dates.length - 1] };
+  if (method) rec.method = method;
   // One atomic batch (Firestore allows 500 writes per batch; chunk just in case).
   const ops = [b => b.set(sref, rec),
     b => logEntry(b, { action: "settle", settlementId: sref.id, summary: { amountCents: rec.amountCents, from: rec.from, to: rec.to } }),
     ...list.map(e => b => b.update(doc(db, "expenses", e.id), { settled: true, settlementId: sref.id }))];
   for (let i = 0; i < ops.length; i += 450) { const b = writeBatch(db); ops.slice(i, i + 450).forEach(f => f(b)); b.commit().catch(writeFailed); }
+  store("venmoPending", "");
   closeScreen(); toast(C.settled);
+}
+/* After Venmo: the app can't see the payment, so it asks once the person comes back. */
+function venmoPending() { try { return JSON.parse(store("venmoPending") || "null"); } catch (e) { return null; } }
+function checkVenmoReturn() {
+  const p = venmoPending(); if (!p || !S.me || !S.loaded) return;
+  if (Date.now() - p.at > 2 * 3600e3 || p.net !== calc(S.expenses).net || p.count !== S.expenses.length || !S.expenses.length) { store("venmoPending", ""); return; }
+  if (S.layer !== "settle") openSettle();
+  showVenmoConfirm(p.txn);
+}
+function showVenmoConfirm(txn) {
+  const box = $("#s-venmo"); if (!box) return;
+  box.innerHTML = `<div class="card ask" id="v-ask" role="status" tabindex="-1"><p>${esc(txn === "charge" ? C.venmoAskRequest : C.venmoAskPay)}</p>
+    <div class="btnrow" style="margin:0"><button class="btn" data-act="venmo-no">${esc(C.venmoNo)}</button><button class="btn primary" data-act="venmo-yes">${esc(C.venmoYes)}</button></div></div>`;
+  const dock = $("#layer .dock"); if (dock) dock.hidden = true;
+  $("#v-ask").focus();
 }
 
 /* ---------------- History detail ---------------- */
@@ -937,6 +968,9 @@ document.addEventListener("click", ev => {
     case "e-delete": deleteEdit(); break;
     case "settle": openSettle(); break;
     case "settle-go": settleGo(); break;
+    case "venmo": store("venmoPending", JSON.stringify({ net: calc(S.expenses).net, count: S.expenses.length, at: Date.now(), txn: el.dataset.txn })); break;
+    case "venmo-yes": store("venmoPending", ""); recordSettlement("venmo"); break;
+    case "venmo-no": store("venmoPending", ""); openSettle(); break;
     case "profile": openProfile(); break;
     case "venmo-save": saveVenmo(); break;
     case "dup-ok": { const d = $("#dup"); if (d) d.remove(); A.dupOk = true; if (A.step === "amount") amountNext(); else saveWhere(); break; }
@@ -1022,6 +1056,7 @@ document.addEventListener("submit", async ev => {
     err.hidden = false; btn.disabled = false; btn.textContent = "Sign in";
   }
 });
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkVenmoReturn(); });
 window.addEventListener("online", () => { S.online = true; updateSync(); });
 window.addEventListener("offline", () => { S.online = false; updateSync(); });
 function updateSync() { const el = $("#sync"); if (el) el.textContent = syncLabel(); }
@@ -1045,6 +1080,7 @@ function subscribe() {
     S.expenses = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
     S.pending = snap.metadata.hasPendingWrites; S.loaded = true;
     if (S.view === "home") render(); else updateSync();
+    if (!S.venmoChecked) { S.venmoChecked = true; checkVenmoReturn(); }
   }, err));
   S.unsubs.push(onSnapshot(collection(db, "merchants"), snap => {
     const m = {}; snap.docs.forEach(d => { m[d.id] = d.data(); }); S.merchants = m;
@@ -1068,7 +1104,7 @@ function subscribe() {
 onAuthStateChanged(auth, async user => {
   S.unsubs.forEach(u => u()); S.unsubs = [];
   if (S.activityUnsub) S.activityUnsub(); Object.assign(S, { activityUnsub: null, activity: [], activityLimit: 100, historyTab: "settle" });
-  S.user = user; S.profiles = {}; resetLayer(); hideToast(); S.layer = null; A.step = null;
+  S.user = user; S.profiles = {}; S.venmoChecked = false; resetLayer(); hideToast(); S.layer = null; A.step = null;
   if (!user) { S.view = "login"; S.me = null; applyTheme(store("theme") || "system"); render(); return; }
   S.me = PEOPLE_BY_EMAIL_HASH[await sha256(String(user.email || "").trim().toLowerCase())] || null;
   if (!S.me) { S.view = "denied"; render(); return; }

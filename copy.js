@@ -96,6 +96,11 @@ export const dupLine = (who, amount, kind, name, date) => `${who} added ${amount
 
 export const venmoHelp = other => `The part after @. ${other}’s phone uses this to pay or request from you.`;
 
+export const settleNote = (from, to) => from === to ? `Shared expenses, ${shortDate(from)}` : `Shared expenses, ${shortDate(from)} – ${shortDate(to)}`;
+export const payOnVenmo = (who, amount) => `Pay ${who} ${amount} on Venmo`;
+export const requestOnVenmo = (who, amount) => `Request ${amount} from ${who} on Venmo`;
+export const noVenmo = who => `${who} hasn’t added a Venmo username yet. They can add it in Profile.`;
+
 /* ---------- Fixed strings ---------- */
 export const C = {
   appName: "Shared expenses",
@@ -104,6 +109,7 @@ export const C = {
   removed: "Removed.",
   changesSaved: "Changes saved.",
   noChanges: "Nothing changed.",
+  venmoAskPay: "Did the Venmo payment go through?", venmoAskRequest: "Did the Venmo request get paid?", venmoYes: "Yes, mark as paid", venmoNo: "Not yet",
   venmoInvalid: "Use 5–30 letters, numbers, dashes, or underscores", venmoSaved: "Venmo username saved.", venmoRemoved: "Venmo username removed.",
   checking: "Checking…",
   billSaved: "Bill saved.", billRetired: "Bill retired.", billBack: "Bill is back.", enterBillAmount: "Enter an amount, like 64.50", noBills: "No active bills.",

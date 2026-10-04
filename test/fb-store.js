@@ -1,7 +1,8 @@
 const store = window.__store = window.__store || {};
+if (sessionStorage.getItem('__persist')) Object.assign(store, JSON.parse(sessionStorage.getItem('__store') || '{}'));
 const subs=new Set(); let n=0;
 const clone=o=>JSON.parse(JSON.stringify(o));
-const notify=()=>setTimeout(()=>subs.forEach(f=>f()),0);
+const notify=()=>{ if (sessionStorage.getItem('__persist')) sessionStorage.setItem('__store', JSON.stringify(store)); setTimeout(()=>subs.forEach(f=>f()),0); };
 export function initializeFirestore(){ return {db:true}; }
 export function persistentLocalCache(){ return {}; }
 export function persistentMultipleTabManager(){ return {}; }

@@ -22,3 +22,57 @@ def run(b):
     check('venmo: cleared', st(pg)['config/profile-bre']['venmo'] is None and pg.inner_text('#toast span') == 'Venmo username removed.')
     pg.click('[data-act=close]')
     c.close()
+    today = datetime.date.today()
+    note = urllib.parse.quote(f'Shared expenses, {md(today)}', safe='')
+    block = "document.addEventListener('click', e => { if (e.target.closest('a[data-act=venmo]')) e.preventDefault(); }, true)"
+    c = new_ctx(b); pg = open_app(c); login(pg); pg.evaluate("sessionStorage.setItem('__persist', '1')")
+    start_add(pg); keys(pg, '100'); set_payer(pg, 'kyle'); next_step(pg); save_at_store(pg, 'costco'); pg.wait_for_timeout(100)
+    pg.click('[data-act=settle]')
+    check('venmo: no username yet', 'Kyle hasn’t added a Venmo username yet. They can add it in Profile.' in pg.inner_text('#s-venmo'))
+    pg.keyboard.press('Escape')
+    fs_write(pg, 'config/profile-kyle', {'venmo': 'Kyle-Test'})
+    pg.click('[data-act=settle]')
+    check('venmo: pay link', pg.inner_text('a[data-act=venmo]') == 'Pay Kyle $50.00 on Venmo'
+          and pg.get_attribute('a[data-act=venmo]', 'href') == f'https://venmo.com/Kyle-Test?txn=pay&amount=50.00&note={note}'
+          and pg.get_attribute('a[data-act=venmo]', 'target') == '_blank')
+    pg.evaluate(block); pg.click('a[data-act=venmo]')
+    p = pg.evaluate("JSON.parse(localStorage.getItem('venmoPending'))")
+    check('venmo: remembers the payment it opened', p['net'] == 5000 and p['count'] == 1 and p['txn'] == 'pay')
+    pg.evaluate("document.dispatchEvent(new Event('visibilitychange'))"); pg.wait_for_timeout(50)
+    check('venmo: asks after returning', pg.inner_text('#v-ask p') == 'Did the Venmo payment go through?'
+          and pg.evaluate('document.activeElement.id') == 'v-ask' and not pg.is_visible('#layer .dock'))
+    pg.click('[data-act=venmo-no]'); pg.wait_for_timeout(50)
+    check('venmo: Not yet changes nothing', pg.locator('a[data-act=venmo]').count() == 1 and pg.is_visible('#layer .dock')
+          and pg.evaluate("localStorage.getItem('venmoPending') || ''") == '' and not [k for k in st(pg) if k.startswith('settlements/')])
+    # Review Focus 2: stale and mismatched entries are dropped silently
+    pg.evaluate("localStorage.setItem('venmoPending', JSON.stringify({net: 5000, count: 1, at: Date.now() - 3*3600e3, txn: 'pay'}))")
+    pg.evaluate("document.dispatchEvent(new Event('visibilitychange'))"); pg.wait_for_timeout(50)
+    check('venmo: older than 2 hours is ignored', pg.locator('#v-ask').count() == 0 and pg.evaluate("localStorage.getItem('venmoPending') || ''") == '')
+    pg.evaluate("localStorage.setItem('venmoPending', JSON.stringify({net: 4000, count: 1, at: Date.now(), txn: 'pay'}))")
+    pg.evaluate("document.dispatchEvent(new Event('visibilitychange'))"); pg.wait_for_timeout(50)
+    check('venmo: a changed balance is ignored', pg.locator('#v-ask').count() == 0)
+    # Review Focus 3: asks again after the app is reopened
+    pg.click('a[data-act=venmo]'); pg.reload(); pg.wait_for_selector('.hero'); pg.wait_for_timeout(300)
+    check('venmo: asks again after reopening', pg.is_visible('#v-ask') and pg.inner_text('#layer-title') == 'Settle up')
+    pg.click('[data-act=venmo-yes]'); pg.wait_for_timeout(150)
+    sets = [v for k, v in st(pg).items() if k.startswith('settlements/')]
+    check('venmo: Yes records the settle-up', len(sets) == 1 and sets[0].get('method') == 'venmo' and sets[0]['amountCents'] == 5000
+          and all(e['settled'] for e in expenses(pg)) and pg.inner_text('#toast span') == 'Settled. Fresh start.')
+    open_history(pg)
+    check('venmo: History says via Venmo', ', via Venmo' in pg.inner_text('#app .rows'))
+    go_home(pg)
+    # The person owed gets a request link
+    fs_write(pg, 'config/profile-bre', {'venmo': 'Bre-Test'})
+    start_add(pg); keys(pg, '100'); set_payer(pg, 'kyle'); next_step(pg); save_at_store(pg, 'costco'); pg.wait_for_timeout(100)
+    pg.evaluate("sessionStorage.removeItem('__persist')"); logout(pg); login(pg, 'kyle')
+    pg.click('[data-act=settle]')
+    check('venmo: request link for the person owed', pg.inner_text('a[data-act=venmo]') == 'Request $50.00 from Bre on Venmo'
+          and pg.get_attribute('a[data-act=venmo]', 'href') == f'https://venmo.com/Bre-Test?txn=charge&amount=50.00&note={note}')
+    pg.evaluate(block); pg.click('a[data-act=venmo]'); pg.evaluate("document.dispatchEvent(new Event('visibilitychange'))"); pg.wait_for_timeout(50)
+    check('venmo: request wording', pg.inner_text('#v-ask p') == 'Did the Venmo request get paid?')
+    pg.click('[data-act=venmo-no]'); pg.keyboard.press('Escape')
+    # Review Focus 5: even balance has no Venmo link
+    start_add(pg); keys(pg, '100'); set_payer(pg, 'bre'); next_step(pg); save_at_store(pg, 'target'); pg.wait_for_timeout(100)
+    pg.click('[data-act=settle]')
+    check('venmo: no link when even', pg.locator('a[data-act=venmo]').count() == 0 and pg.inner_text('#s-venmo').strip() == '')
+    c.close()
