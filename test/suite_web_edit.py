@@ -57,4 +57,12 @@ def run(b):
     # Review Focus 2: a link to a missing expense
     pg.evaluate("location.hash = '#/edit/nope'"); pg.wait_for_timeout(250)
     check('edit: a link to a missing expense lands on Home', not sheet_open(pg) and pg.evaluate('location.hash') == '#/')
+    # Final review: a quick double tap on Save or Delete writes once (the log can't be cleaned up afterwards)
+    start_add(pg); keys(pg, '8'); next_step(pg); save_at_store(pg, 'costco')
+    did = [k for k, v in st(pg).items() if k.startswith('expenses/') and v['amountCents'] == 800][0].split('/')[1]
+    pg.click(f'[data-act=edit][data-id="{did}"]'); pg.wait_for_selector('#e-amt'); pg.fill('#e-amt', '9')
+    pg.dblclick('[data-act=e-save]'); pg.wait_for_timeout(250)
+    check('edit: a double tap on Save logs one edit', len([x for x in activity(pg) if x['action'] == 'edit' and x['expenseId'] == did]) == 1)
+    pg.click(f'[data-act=edit][data-id="{did}"]'); pg.wait_for_selector('#e-amt'); pg.click('[data-act=e-delete]'); pg.dblclick('[data-act=e-delete]'); pg.wait_for_timeout(250)
+    check('edit: a double tap on Delete logs one delete', len([x for x in activity(pg) if x['action'] == 'delete' and x['expenseId'] == did]) == 1)
     c.close()

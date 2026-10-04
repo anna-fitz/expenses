@@ -38,7 +38,9 @@ export function EditSheet({ id }: { id: string }) {
   const inv = (field: Field) => (err?.field === field ? { "aria-invalid": true as const, "aria-describedby": "e-err" } : {});
   // Arrow functions, not declarations: they keep TypeScript's narrowing of `orig` and `f` from the guard above.
   const fail = (msg: string, field: Field) => { setErr({ msg, field }); requestAnimationFrame(() => document.getElementById(field)?.focus()); };
+  // `done` also guards against a second tap before the sheet closes: each tap would write (and log) again.
   const save = () => {
+    if (done.current) return;
     const c = toCents(f.amt), name = f.store.trim().replace(/\s+/g, " ");
     if (!c || c > MAX_CENTS) return fail(C.amountLike, "e-amt");
     if (!name) return fail(C.needStore, "e-store");
@@ -49,6 +51,7 @@ export function EditSheet({ id }: { id: string }) {
     toast(changed ? C.changesSaved : C.noChanges);
   };
   const del = () => {
+    if (done.current) return;
     if (!armed) return setArmed(true);
     done.current = true;
     deleteExpense(orig, people.me);
