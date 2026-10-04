@@ -109,17 +109,20 @@ def run(b):
     check('review: title, hero amount, where', pg.inner_text('#layer-title') == 'Look good?' and pg.evaluate('document.activeElement.id') == 'layer-title'
           and pg.inner_text('#rv-amt') == '$45.12' and pg.inner_text('#rv-at') == 'at Ralphs'
           and pg.evaluate("getComputedStyle(document.getElementById('rv-amt')).fontSize") == '56px')
-    check('review: rows, with the note right after the store', [rv(pg, k) for k in ('store', 'note', 'amount', 'payer', 'split', 'date', 'category')]
-          == ['Ralphs', 'Paper towels', '$45.12', 'You', '50/50, Sam owes $22.56', 'Today', 'Groceries']
+    check('review: rows, with the note right after the store', [rv(pg, k) for k in ('store', 'amount', 'payer', 'split', 'date', 'category')]
+          == ['Ralphs', '$45.12', 'You', '50/50, Sam owes $22.56', 'Today', 'Groceries'] and pg.input_value('#rv-note') == 'Paper towels'
           and pg.evaluate("[...document.querySelectorAll('#review [data-row]')].map(r => r.dataset.row).slice(0, 2).join()") == 'store,note'
           and pg.locator('[data-row=covers]').count() == 0)
     check('review: rows are named buttons', pg.get_attribute('[data-act=rv-payer]', 'aria-label') == 'Paid by, You')
     check('review: Cancel at the top', pg.inner_text('#layer header [data-act=close]') == 'Cancel')
-    pg.click('[data-act=rv-note]'); pg.wait_for_selector('#details'); pg.wait_for_timeout(100)
-    check('details: the Note row starts in the note', pg.evaluate('document.activeElement.id') == 'o-note' and pg.input_value('#o-note') == 'Paper towels')
-    pg.fill('#o-note', 'Paper towels, 2 pack'); details_done(pg)
-    check('review: the edited note shows, focus back on its row', rv(pg, 'note') == 'Paper towels, 2 pack'
-          and pg.evaluate('document.activeElement.dataset.act') == 'rv-note')
+    check('review: the note is a field right on review, named Note', pg.get_by_role('textbox', name='Note').count() == 1
+          and pg.locator('[data-act=rv-note]').count() == 0 and pg.locator('#details').count() == 0)
+    pg.click('#rv-note'); pg.fill('#rv-note', 'Paper towels, 2 pack')
+    check('review: editing it stays on review, and Details shows the same note', pg.inner_text('#layer-title') == 'Look good?'
+          and pg.locator('#details').count() == 0 and pg.evaluate('document.activeElement.id') == 'rv-note')
+    pg.click('[data-act=rv-payer]'); pg.wait_for_selector('#details'); pg.wait_for_timeout(100)
+    check('details: …the same note', pg.input_value('#o-note') == 'Paper towels, 2 pack')
+    details_done(pg)
     check('review: Back and Log expense', pg.inner_text('[data-act=back]') == 'Back' and pg.inner_text('[data-act=log]') == 'Log expense')
     log_it(pg)
     e = expenses(pg)
@@ -195,7 +198,7 @@ def run(b):
           and pg.evaluate('document.activeElement.id') == 'w-cat' and pg.inner_text('#layer-title') == 'Where was it?')
     pg.select_option('#w-cat', 'Coffee'); next_step(pg)
     check('review: a new store and its category; no note yet', rv(pg, 'store') == 'Blue Bottle' and rv(pg, 'category') == 'Coffee'
-          and rv(pg, 'note') == 'Add a note' and pg.get_attribute('[data-act=rv-note]', 'aria-label') == 'Note, Add a note')
+          and pg.input_value('#rv-note') == '' and pg.get_attribute('#rv-note', 'placeholder') == 'Add a note')
     log_it(pg)
     m = st(pg).get('merchants/blue-bottle', {})
     check('review: a new store is learned', m.get('category') == 'Coffee' and m.get('count') == 1 and any(x['merchant'] == 'Blue Bottle' for x in expenses(pg)))
@@ -212,8 +215,8 @@ def run(b):
     check('bills: Next goes straight to review', pg.inner_text('#layer-title') == 'Look good?' and pg.inner_text('#rv-at') == 'for Electricity'
           and rv(pg, 'store') == 'Electricity' and pg.locator('[data-act=rv-store]').count() == 0
           and rv(pg, 'payer') == 'Sam' and rv(pg, 'category') == 'Utilities' and rv(pg, 'covers') == month)
-    pg.click('[data-act=rv-note]'); pg.wait_for_selector('#details'); pg.fill('#o-note', 'Summer rate'); details_done(pg)
-    check('bills: a bill can have a note', rv(pg, 'note') == 'Summer rate')
+    pg.fill('#rv-note', 'Summer rate')
+    check('bills: a bill can have a note', pg.input_value('#rv-note') == 'Summer rate')
     pg.click('[data-act=back]'); pg.wait_for_timeout(80)
     check('bills: Back goes to step 1', pg.inner_text('#layer-title') == 'Add expense' and 'For Electricity' in pg.inner_text('.billfor'))
     next_step(pg); pg.wait_for_timeout(150); log_it(pg)
