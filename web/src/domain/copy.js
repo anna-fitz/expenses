@@ -141,6 +141,25 @@ export const confirmTitle = (kind, who, amount) =>
   kind === "even" ? "Close this period?" : kind === "pay" ? `Did you pay ${who} ${amount}?` : `Did ${who} pay you ${amount}?`;
 export const confirmBody = n => `This starts a fresh balance. ${n === 1 ? "The 1 expense moves" : `All ${n} expenses move`} to History, where you can always see ${n === 1 ? "it" : "them"}.`;
 
+/* ---------- Profile and Settings ---------- */
+export const storesCount = n => `${n} store${n === 1 ? "" : "s"}`;
+export const billsCount = n => `${n} bill${n === 1 ? "" : "s"}`;
+export function reminderSummary(days, cents) {
+  if (days && cents) return `After ${days} days or over ${fmtWhole(cents)}`;
+  if (days) return `After ${days} days`;
+  if (cents) return `Over ${fmtWhole(cents)}`;
+  return "Off";
+}
+export const daysOpt = d => `${d} days`;
+export const theirColor = them => `${them}’s color`;
+export const tooClose = them => `Too close to ${them}’s`;
+// Plain and mechanical: what's stored, who can read it, and the one thing the app does with it.
+export const venmoPrivacy = them => ({
+  before: `Stored as text in your profile in Firebase, readable only by your account and ${them}’s. The app uses it for one thing: building a Venmo link, `,
+  code: "venmo.com/{username}?txn=pay&amount=…&note=…",
+  after: ", that opens Venmo with the payment filled in. It never signs in to Venmo, and it can’t see your Venmo account, balance, or payments.",
+});
+
 /* ---------- History ---------- */
 export const settleLine = (s, names) => s.amountCents ? `${names[s.from]} paid ${names[s.to]} ${fmt(s.amountCents)}` : "Closed even";
 export const settleSub = s => `${longDate(s.date)}, ${s.count} expense${s.count === 1 ? "" : "s"}${s.method === "venmo" ? ", via Venmo" : ""}`;
@@ -166,7 +185,7 @@ export function privacySections(them) {
     { id: "never", title: "What nobody can see", body: [
       "Your password. Firebase stores it scrambled (hashed), so no one can read it, including either admin.",
       "Bank or card details. The app never asks for them.",
-      "Your Venmo account. The app only opens Venmo with an amount filled in. It can’t see your account or whether a payment went through."] },
+      "Your Venmo account. The app only builds a link (venmo.com/{username}?txn=pay&amount=…) that opens Venmo with the payment filled in. It never signs in to Venmo, and can’t see your account, balance, or whether a payment went through."] },
     { id: "phone", title: "What’s on this phone", body: [
       "A copy of the shared data, so the app works offline. Only this app can read it.",
       "Signing out erases it from this phone.",
@@ -206,6 +225,13 @@ export const C = {
   pwWrongCurrent: "That current password isn’t right.", pwSaved: "Password saved.", pwFailed: "Couldn’t save the password. Try again.",
   appName: "Expenses",
   add: "Add expense",
+  profile: "Profile", profileSub: "Profile, Venmo, account", shared: "Shared", sharedNote: "Changes here apply to both of you.", stores: "Stores",
+  yourLook: "Your look", emoji: "Emoji", emojiHelp: "Any single emoji. Use your phone’s emoji keyboard.", useInitial: "Use my initial instead",
+  oneEmoji: "Use one emoji.", emojiSaved: "Emoji saved.", emojiRemoved: "Emoji removed.", color: "Color", colorSaved: "Color saved.",
+  theme: "Theme", themeSystem: "Match phone", themeLight: "Light", themeDark: "Dark", themeSaved: "Theme saved.",
+  gettingPaid: "Getting paid", venmoLabel: "Your Venmo username", account: "Account", emailLabel: "Email",
+  emailNote: "Used only to sign in. Admins can see it in the Firebase console.", changePw: "Change password", save: "Save", off: "Off",
+  reminderOn: "With these settings, the reminder is showing now.", reminderOff: "No reminder right now.",
   settleUp: "Settle up", howWeGot: "How we got this", paidOther: "Paid another way", closePeriod: "Close this period", yesClose: "Yes, close it",
   next: "Next", log: "Log expense", reviewTitle: "Look good?", pickBill: "Pick a bill", clear: "Clear", done: "Done", storeDefault: "Store’s default",
   billsHelp: "Bills are your recurring shared costs, kept separate from everyday expenses. Each one fills in its usual amount. Change it on the keypad if this month’s is different.",
@@ -261,7 +287,5 @@ export const C = {
 };
 
 /* ---------- Profile ---------- */
-export const COLOR_NAMES = { plum: "Plum", green: "Green", blue: "Blue", teal: "Teal", coral: "Coral", amber: "Amber", rose: "Rose", slate: "Slate" };
-export const EMOJI_NAMES = { "🌻": "Sunflower", "🌵": "Cactus", "🍋": "Lemon", "🍑": "Peach", "🐶": "Dog", "🐱": "Cat", "🦊": "Fox", "🐻": "Bear",
-  "🐼": "Panda", "🐸": "Frog", "🐙": "Octopus", "☕": "Coffee", "🌙": "Moon", "⭐": "Star", "🎧": "Headphones", "🚲": "Bike" };
+export const COLOR_NAMES = { blue: "Blue", orange: "Orange", aqua: "Aqua", magenta: "Magenta", green: "Green", violet: "Violet" };
 export const colorMoved = (partner, colorName) => `${partner} picked this color too, so yours shows as ${colorName} for now.`;

@@ -1,8 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { C, activityLine, addNewStore, balanceLine, emptyBody, greeting, nudgeLine, optsSummary, privacySections, savedLine, settleLine, settleSub, settledTitle, SIGNIN_NOTE, splitHelp, storeSub, atLine, categoryDefault, dateLabel, splitLine, storeSelected, todayISO, isABill, settleHero, periodLine, payVenmo, requestVenmo, confirmTitle, confirmBody } from "./copy.js";
+import { C, activityLine, addNewStore, balanceLine, emptyBody, greeting, nudgeLine, optsSummary, privacySections, savedLine, settleLine, settleSub, settledTitle, SIGNIN_NOTE, splitHelp, storeSub, atLine, categoryDefault, dateLabel, splitLine, storeSelected, todayISO, isABill, settleHero, periodLine, payVenmo, requestVenmo, confirmTitle, confirmBody, COLOR_NAMES, billsCount, daysOpt, reminderSummary, storesCount, theirColor, tooClose, venmoPrivacy } from "./copy.js";
 
 const N = { p1: "Alex", p2: "Sam" };
 describe("copy", () => {
+  it("words Profile and Settings", () => {
+    expect([storesCount(17), storesCount(1), billsCount(6), billsCount(1)]).toEqual(["17 stores", "1 store", "6 bills", "1 bill"]);
+    expect([reminderSummary(60, 50000), reminderSummary(60, 0), reminderSummary(0, 100000), reminderSummary(0, 0)])
+      .toEqual(["After 60 days or over $500", "After 60 days", "Over $1,000", "Off"]);
+    expect([daysOpt(30), theirColor("Sam"), tooClose("Sam")]).toEqual(["30 days", "Sam’s color", "Too close to Sam’s"]);
+    expect(COLOR_NAMES).toEqual({ blue: "Blue", orange: "Orange", aqua: "Aqua", magenta: "Magenta", green: "Green", violet: "Violet" });
+    const v = venmoPrivacy("Sam");
+    expect(v.code).toBe("venmo.com/{username}?txn=pay&amount=…&note=…");
+    expect(v.before + v.code + v.after).toBe("Stored as text in your profile in Firebase, readable only by your account and Sam’s. The app uses it for one thing: "
+      + "building a Venmo link, venmo.com/{username}?txn=pay&amount=…&note=…, that opens Venmo with the payment filled in. "
+      + "It never signs in to Venmo, and it can’t see your Venmo account, balance, or payments.");
+    expect(/\p{Extended_Pictographic}/u.test(v.before + v.after + C.emailNote)).toBe(false);
+  });
+  it("explains the Venmo mechanism on the privacy page too", () =>
+    expect(privacySections("Sam").find((s) => s.id === "never")?.body[2]).toBe(
+      "Your Venmo account. The app only builds a link (venmo.com/{username}?txn=pay&amount=…) that opens Venmo with the payment filled in. "
+      + "It never signs in to Venmo, and can’t see your account, balance, or whether a payment went through."));
   it("greets by time of day", () =>
     expect([4, 5, 12, 17].map((h) => greeting("Alex", h))).toEqual(["Evening, Alex 🌙", "Morning, Alex ☀️", "Afternoon, Alex 👋", "Evening, Alex 🌙"]));
   it("states the balance from your side, generically", () => {
