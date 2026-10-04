@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { C, activityLine, addNewStore, balanceLine, billNext, emptyBody, greeting, nudgeLine, optsSummary, paidByLine, privacySections, saveAt, savedLine, settleLine, settleSub, settledTitle, SIGNIN_NOTE, splitHelp, storeSub, atLine, categoryDefault, dateLabel, splitLine, storeSelected, todayISO } from "./copy.js";
+import { C, activityLine, addNewStore, balanceLine, emptyBody, greeting, nudgeLine, optsSummary, privacySections, savedLine, settleLine, settleSub, settledTitle, SIGNIN_NOTE, splitHelp, storeSub, atLine, categoryDefault, dateLabel, splitLine, storeSelected, todayISO } from "./copy.js";
 
 const N = { p1: "Alex", p2: "Sam" };
 describe("copy", () => {
@@ -26,10 +26,7 @@ describe("copy", () => {
   it("covers every privacy section", () =>
     expect(privacySections("Sam").map((s) => s.id)).toEqual(["where", "who", "never", "phone", "code", "log"]));
   it("words the add flow", () => {
-    expect(billNext("Internet", "$80.00")).toBe("Save Internet, $80.00");
-    expect(saveAt("$45.12", "Costco")).toBe("Save $45.12 at Costco");
     expect(addNewStore("Blue Bottle")).toBe("Add Blue Bottle as a new store");
-    expect(paidByLine("$45.12", "you")).toBe("$45.12, paid by you");
     expect(optsSummary("Today", "half", "")).toBe("Today · split 50/50 · usual category");
     expect(optsSummary("Sep 1", "full", "Coffee")).toBe("Sep 1 · owed in full · Coffee");
     expect(splitHelp("Sam", "half", 4513)).toBe("Sam owes $22.57.");

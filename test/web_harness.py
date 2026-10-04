@@ -50,7 +50,7 @@ def text_and_html(pg): return pg.evaluate("document.body.innerText + '\\n' + doc
 def small_targets(pg):
     return pg.evaluate("""() => [...document.querySelectorAll('a[href], button, summary, input:not([type=hidden]), select, textarea, [role=checkbox], [role=radio]')]
       .filter(el => {
-        const ok = r => r.width >= 44 && r.height >= 44, r = el.getBoundingClientRect();
+        const ok = r => r.width >= 43.99 && r.height >= 43.99, r = el.getBoundingClientRect();   // sub-pixel noise while a sheet slides in
         if ((!r.width && !r.height) || el.closest('[aria-hidden=true]')) return false;
         const l = el.id && document.querySelector(`label[for="${el.id}"]`);
         return !ok(r) && !(l && ok(l.getBoundingClientRect()));

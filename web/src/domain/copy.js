@@ -113,13 +113,10 @@ export function nudgeLine(days, limit, settledBefore) {
 export const emptyBody = other => `Add the first expense and it pops up on ${other}’s phone instantly.`;
 
 /* ---------- Add and edit ---------- */
-export const billNext = (name, amount) => `Save ${name}, ${amount}`;
 export const billFor = name => `For ${name}`;
-export const saveAt = (amount, store) => `Save ${amount} at ${store}`;
 export const addNewStore = q => `Add ${q} as a new store`;
 export const categoryFor = name => `Category for ${name}`;
 export const pickCategoryFor = name => `Pick a category for ${name}`;
-export const paidByLine = (amount, who) => `${amount}, paid by ${who}`;
 export const optsSummary = (dateLabel, split, category) =>
   [dateLabel, split === "full" ? "owed in full" : "split 50/50", category || "usual category"].join(" · ");
 export const splitHelp = (other, split, cents) =>
@@ -200,12 +197,12 @@ export const C = {
   add: "Add expense",
   next: "Next", log: "Log expense", reviewTitle: "Look good?", pickBill: "Pick a bill", clear: "Clear", done: "Done", storeDefault: "Store’s default",
   addNote: "Add note",
-  step1: "Step 1 of 2", step2: "Step 2 of 2", amount: "Amount", amountHint: "Type it in, or pick a bill.",
-  bills: "Bills", change: "Change", nextStore: "Next: choose store", cancel: "Cancel", back: "Back", enterAmount: "Enter an amount",
+  amount: "Amount",
+  bills: "Bills", change: "Change", cancel: "Cancel", back: "Back", enterAmount: "Enter an amount",
   deleteDigit: "Delete last digit", decimal: "Decimal point", paidBy: "Paid by", you: "You", youLower: "you", someone: "Someone",
   whereTitle: "Where was it?", store: "Store", storeSearch: "Search, or type a new one", chooseStore: "Choose a store",
   pickStore: "Pick a store first", typeToAdd: "Type a store name to add it.", chooseCategory: "Choose a category",
-  usualCategory: "Use the store’s usual category", editAmount: "Edit amount", details: "Details", date: "Date", split: "Split",
+  editAmount: "Edit amount", details: "Details", date: "Date", split: "Split",
   splitHalf: "50/50", splitFull: "Owed in full", category: "Category", note: "Note", notePh: "What was it? e.g., dog food", covers: "Covers",
   coversPh: "July – September", coversHelp: "For bills that pay for more than one month.",
   dupTitle: "Looks like a repeat 🔁", dupCancel: "Don’t add", dupOk: "Log anyway", undo: "Undo", edit: "Edit", dismiss: "Dismiss",
