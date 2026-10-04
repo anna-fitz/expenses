@@ -1,8 +1,6 @@
 import { useEffect } from "react";
-import { ChevronRight, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useData } from "@/data/data";
-import { signOutAndErase } from "@/data/session";
 import { C } from "@/domain/copy.js";
 import { PERSON_COLORS, inkOn, resolveColors } from "@/domain/people";
 import { cn } from "@/lib/utils";
@@ -13,14 +11,12 @@ import { useVenmoReturn } from "@/features/settle/useVenmoReturn";
 import { HistoryScreen } from "@/features/history/HistoryScreen";
 import { SettlementSheet } from "@/features/history/SettlementSheet";
 import { HomeScreen } from "@/features/home/HomeScreen";
+import { SettingsRoutes } from "@/features/settings/SettingsRoutes";
 import { Onboarding } from "./Onboarding";
 import { PlaceholderScreen } from "./PlaceholderScreen";
-import { PrivacyScreen } from "./PrivacyScreen";
 import { openSheet, useRoute } from "./route";
-import { SecurityNote } from "./SecurityNote";
 import { TabBar } from "./TabBar";
 import { applyTheme } from "./theme";
-import { markNavigated } from "./useScreen";
 
 export function Shell() {
   const route = useRoute(), { people, profiles } = useData(), me = profiles[people.me];
@@ -45,21 +41,7 @@ export function Shell() {
           {route.tab === "home" && <HomeScreen />}
           {route.tab === "history" && <HistoryScreen route={route} />}
           {route.tab === "insights" && <PlaceholderScreen title={C.tabInsights} />}
-          {route.tab === "settings" && route.sub === "privacy" && <PrivacyScreen them={them} />}
-          {route.tab === "settings" && route.sub !== "privacy" && (
-            <PlaceholderScreen title={C.tabSettings}>
-              <a href="#/settings/privacy" data-act="privacy" onClick={markNavigated}
-                className="flex min-h-12 items-center gap-3 rounded-xl border bg-card px-4 py-3">
-                <ShieldCheck className="size-5 text-muted-foreground" aria-hidden="true" />
-                <span className="flex-1 text-body">{C.privacyTitle}</span>
-                <ChevronRight className="size-4 text-muted-foreground" aria-hidden="true" />
-              </a>
-              <div className="flex flex-col gap-2">
-                <Button variant="outline" size="lg" className="h-11" data-act="signout" onClick={() => void signOutAndErase()}>{C.signOut}</Button>
-                <SecurityNote id="signout-note">{C.signOutNote}</SecurityNote>
-              </div>
-            </PlaceholderScreen>
-          )}
+          {route.tab === "settings" && <SettingsRoutes route={route} them={them} />}
         </div>
       </main>
       {route.tab === "home" && (
