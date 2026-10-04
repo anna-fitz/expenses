@@ -46,3 +46,6 @@ export function writeBatch(){ const ops=[]; return {
   update:(r,d)=>ops.push(()=>apply(r.path,d,true)),
   delete:r=>ops.push(()=>{delete store[r.path]}),
   commit:async()=>{ maybeFail(); ops.forEach(f=>f()); notify(); } }; }
+export async function terminate(){ window.__terminated = true; }
+export async function clearIndexedDbPersistence(){ for (const k of Object.keys(store)) delete store[k]; sessionStorage.removeItem('__store'); }
+window.__fbStore = { setDoc, doc, writeBatch };
