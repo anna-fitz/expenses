@@ -1,0 +1,60 @@
+/* Design language tokens (2026-10-04-design-language). Values only; utilities are mapped in index.css. */
+:root {
+  --radius: 1rem;
+  --background: #FAFAFA;
+  --foreground: #09090B;
+  --card: #FFFFFF;
+  --card-foreground: #09090B;
+  --popover: #FFFFFF;
+  --popover-foreground: #09090B;
+  --primary: #18181B;
+  --primary-foreground: #FAFAFA;
+  --secondary: #F4F4F5;
+  --secondary-foreground: #18181B;
+  --muted: #F4F4F5;
+  --muted-foreground: #71717A;
+  --accent: #F4F4F5;
+  --accent-foreground: #18181B;
+  --destructive: #DC2626;
+  --border: #E4E4E7;
+  --input: #E4E4E7;
+  --ring: #18181B;
+  --warning-bg: #FFFBEB; --warning-border: #FDE68A; --warning-fg: #92400E; --warning-icon: #D97706;
+  --success-bg: #F0FDF4; --success-border: #BBF7D0; --success-fg: #166534; --success-icon: #16A34A;
+  --danger-bg: #FEF2F2; --danger-border: #FECACA; --danger-fg: #B91C1C; --danger-icon: #DC2626;
+  --chart-1: #2a78d6; --chart-2: #eb6834; --chart-3: #1baf7a; --chart-4: #eda100;
+  --chart-5: #e87ba4; --chart-6: #008300; --chart-7: #4a3aa7; --chart-8: #e34948;
+  --person-a: var(--person-a-l, #4a3aa7);
+  --person-b: var(--person-b-l, #008300);
+  --person-a-ink: var(--person-a-ink-l, #FFFFFF);
+  --person-b-ink: var(--person-b-ink-l, #FFFFFF);
+}
+.dark {
+  --background: #09090B;
+  --foreground: #FAFAFA;
+  --card: #18181B;
+  --card-foreground: #FAFAFA;
+  --popover: #18181B;
+  --popover-foreground: #FAFAFA;
+  --primary: #E4E4E7;
+  --primary-foreground: #18181B;
+  --secondary: #27272A;
+  --secondary-foreground: #FAFAFA;
+  --muted: #27272A;
+  --muted-foreground: #A1A1AA;
+  --accent: #27272A;
+  --accent-foreground: #FAFAFA;
+  --destructive: #F87171;
+  --border: #27272A;
+  --input: #27272A;
+  --ring: #D4D4D8;
+  --warning-bg: #2A1A05; --warning-border: #78350F; --warning-fg: #FDE68A; --warning-icon: #FBBF24;
+  --success-bg: #052E16; --success-border: #14532D; --success-fg: #BBF7D0; --success-icon: #4ADE80;
+  --danger-bg: #3B0A0A; --danger-border: #7F1D1D; --danger-fg: #FECACA; --danger-icon: #F87171;
+  --chart-1: #3987e5; --chart-2: #d95926; --chart-3: #199e70; --chart-4: #c98500;
+  --chart-5: #d55181; --chart-6: #008300; --chart-7: #9085e9; --chart-8: #e66767;
+  --person-a: var(--person-a-d, #9085e9);
+  --person-b: var(--person-b-d, #008300);
+  --person-a-ink: var(--person-a-ink-d, #09090B);
+  --person-b-ink: var(--person-b-ink-d, #FFFFFF);
+}

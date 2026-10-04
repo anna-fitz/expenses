@@ -1,1 +1,37 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "./styles/tokens.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --color-background: var(--background); --color-foreground: var(--foreground);
+  --color-card: var(--card); --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover); --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary); --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary); --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted); --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent); --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive); --color-border: var(--border); --color-input: var(--input); --color-ring: var(--ring);
+  --color-warning-bg: var(--warning-bg); --color-warning-border: var(--warning-border); --color-warning-fg: var(--warning-fg); --color-warning-icon: var(--warning-icon);
+  --color-success-bg: var(--success-bg); --color-success-border: var(--success-border); --color-success-fg: var(--success-fg); --color-success-icon: var(--success-icon);
+  --color-danger-bg: var(--danger-bg); --color-danger-border: var(--danger-border); --color-danger-fg: var(--danger-fg); --color-danger-icon: var(--danger-icon);
+  --color-chart-1: var(--chart-1); --color-chart-2: var(--chart-2); --color-chart-3: var(--chart-3); --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5); --color-chart-6: var(--chart-6); --color-chart-7: var(--chart-7); --color-chart-8: var(--chart-8);
+  --color-person-a: var(--person-a); --color-person-b: var(--person-b);
+  --radius-sm: calc(var(--radius) - 4px); --radius-md: calc(var(--radius) - 2px); --radius-lg: var(--radius); --radius-xl: calc(var(--radius) + 4px);
+  --text-display: 2.5rem; --text-display--line-height: 2.75rem; --text-display--font-weight: 600; --text-display--letter-spacing: -0.02em;
+  --text-title: 1.75rem; --text-title--line-height: 2.125rem; --text-title--font-weight: 600; --text-title--letter-spacing: -0.02em;
+  --text-heading: 1.125rem; --text-heading--line-height: 1.5rem; --text-heading--font-weight: 500;
+  --text-body: 1rem; --text-body--line-height: 1.5rem;
+  --text-caption: 0.875rem; --text-caption--line-height: 1.25rem;
+  --text-label: 0.75rem; --text-label--line-height: 1rem; --text-label--font-weight: 500;
+}
+
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  html, body, #root { height: 100%; }
+  body { @apply bg-background text-foreground font-sans antialiased; -webkit-tap-highlight-color: transparent; }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0s !important; transition-duration: 0s !important; } }
+}
