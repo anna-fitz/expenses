@@ -11,9 +11,9 @@ import { useData } from "@/data/data";
 import type { Expense, Merchant, Person } from "@/data/types";
 import { deleteExpense, editExpense } from "@/data/writes";
 import { MAX_CENTS, centsToBuf, toCents } from "@/domain/amount";
-import { CATEGORIES } from "@/domain/categories";
+import { categoryOptions } from "@/domain/categories";
 import { C, todayISO } from "@/domain/copy.js";
-import { canonicalName } from "@/domain/stores.js";
+import { canonicalName, canonicalSlug } from "@/domain/stores.js";
 
 type Split = Expense["split"];
 type Form = { amt: string; payer: Person; store: string; category: string; date: string; split: Split; note: string; covers: string };
@@ -58,7 +58,8 @@ export function EditSheet({ id }: { id: string }) {
     close();
     toast(C.deleted);
   };
-  const cats = CATEGORIES.includes(f.category) ? CATEGORIES : [...CATEGORIES, f.category];
+  // A–Z with the expense's store's usual category marked; an older category not in the list stays available.
+  const cats = categoryOptions({ store: canonicalName(merchants, orig.merchant), category: merchants[canonicalSlug(merchants, orig.merchant)]?.category || "" }, f.category);
   return (
     <Sheet title={C.editTitle} onClose={close}
       headerAction={<Button variant="ghost" className="h-11 text-body" data-act="close" onClick={close}>{C.cancel}</Button>}
@@ -75,7 +76,7 @@ export function EditSheet({ id }: { id: string }) {
         <Input id="e-store" autoCapitalize="words" className="h-11 text-body" value={f.store} onChange={(e) => set({ store: e.target.value })} {...inv("e-store")} /></div>
       <div className="grid gap-2"><Label htmlFor="e-cat">{C.category}</Label>
         <NativeSelect id="e-cat" className="h-11 text-body" value={f.category} onChange={(e) => set({ category: e.target.value })}>
-          {cats.map((c) => <option key={c} value={c}>{c}</option>)}
+          {cats.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </NativeSelect></div>
       <div className="grid gap-2"><Label htmlFor="e-date">{C.date}</Label>
         <Input id="e-date" type="date" className="h-11 text-body" value={f.date} onChange={(e) => set({ date: e.target.value })} /></div>

@@ -15,7 +15,7 @@ export function AmountStep({ f }: { f: AddFlow }) {
       <div className="display flex flex-col gap-1">
         <div role="group" aria-labelledby="amt-label" aria-describedby={describedBy}>
           <p id="amt-label" className="text-label text-muted-foreground">{C.amount}</p>
-          <p id="amt" className={cn("text-display tabular-nums", !a.buf && "text-muted-foreground")}>{amountText(a.buf)}</p>
+          <p id="amt" className={cn("text-hero tabular-nums", !a.buf && "text-muted-foreground")}>{amountText(a.buf)}</p>
         </div>
         {a.bill
           ? <p className="billfor flex items-center gap-1 text-body">{billFor(a.bill.name)}

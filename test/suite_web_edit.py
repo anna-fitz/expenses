@@ -65,4 +65,12 @@ def run(b):
     check('edit: a double tap on Save logs one edit', len([x for x in activity(pg) if x['action'] == 'edit' and x['expenseId'] == did]) == 1)
     pg.click(f'[data-act=edit][data-id="{did}"]'); pg.wait_for_selector('#e-amt'); pg.click('[data-act=e-delete]'); pg.dblclick('[data-act=e-delete]'); pg.wait_for_timeout(250)
     check('edit: a double tap on Delete logs one delete', len([x for x in activity(pg) if x['action'] == 'delete' and x['expenseId'] == did]) == 1)
+    start_add(pg); keys(pg, '8'); next_step(pg); save_at_store(pg, 'costco')
+    kid = [k for k, v in st(pg).items() if k.startswith('expenses/') and v['amountCents'] == 800][0].split('/')[1]
+    pg.click(f'[data-act=edit][data-id="{kid}"]'); pg.wait_for_selector('#e-cat')
+    labels = pg.evaluate("[...document.querySelectorAll('#e-cat option')].map(o => o.textContent)")
+    check('edit: categories A–Z, Other last, the store’s default marked', labels == ['Car & fuel', 'Coffee', 'Dining & takeout', 'Drinks & smoke shop',
+        'Gifts & occasions', 'Groceries (default for Costco)', 'Home & household', 'Pets', 'Pool & yard', 'Travel & fun', 'Utilities', 'Other']
+          and pg.input_value('#e-cat') == 'Groceries')
+    close_sheet(pg)
     c.close()

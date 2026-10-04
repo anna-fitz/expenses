@@ -152,3 +152,12 @@ def run(b):
         check(f'add1: {vp[0]}x{vp[1]} action bar on screen, body above it', dock['y'] + dock['height'] <= vp[1] + 1
               and body['y'] + body['height'] <= dock['y'] + 1 and pg.evaluate('document.documentElement.scrollWidth <= window.innerWidth'))
         c.close()
+    # ---- The keypad matches iPhone's number pad; the amount is the hero ----
+    c = new_ctx(b); pg = open_app(c); login(pg); start_add(pg); pg.wait_for_timeout(300)   # let the sheet finish sliding up
+    k1, k2, k4 = (pg.locator(f'[data-act=key][data-k="{k}"]').bounding_box() for k in '124')
+    check('keypad: iPhone sizing', 44 <= k1['height'] <= 48 and 5 <= k2['x'] - (k1['x'] + k1['width']) <= 7 and 5 <= k4['y'] - (k1['y'] + k1['height']) <= 7)
+    check('keypad: regular-weight 28px digits, edge to edge', pg.evaluate(
+        "(() => { const s = getComputedStyle(document.querySelector('[data-act=key][data-k=\"1\"]')); return [s.fontSize, s.fontWeight]; })()") == ['28px', '400']
+          and abs(pg.locator('#layer .keys').bounding_box()['width'] - 390) <= 1)
+    check('add1: the amount uses the hero size', pg.evaluate("getComputedStyle(document.getElementById('amt')).fontSize") == '56px')
+    c.close()
