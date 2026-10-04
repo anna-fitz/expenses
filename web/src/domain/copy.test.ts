@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { C, activityLine, addNewStore, balanceLine, emptyBody, greeting, nudgeLine, optsSummary, privacySections, savedLine, settleLine, settleSub, settledTitle, SIGNIN_NOTE, splitHelp, storeSub, atLine, categoryDefault, dateLabel, splitLine, storeSelected, todayISO, isABill } from "./copy.js";
+import { C, activityLine, addNewStore, balanceLine, emptyBody, greeting, nudgeLine, optsSummary, privacySections, savedLine, settleLine, settleSub, settledTitle, SIGNIN_NOTE, splitHelp, storeSub, atLine, categoryDefault, dateLabel, splitLine, storeSelected, todayISO, isABill, settleHero, periodLine, payVenmo, requestVenmo, confirmTitle, confirmBody } from "./copy.js";
 
 const N = { p1: "Alex", p2: "Sam" };
 describe("copy", () => {
@@ -59,5 +59,18 @@ describe("copy", () => {
     expect(C.billsHelp).toBe("Bills are your recurring shared costs, kept separate from everyday expenses. Each one fills in its usual amount. Change it on the keypad if this month’s is different.");
     expect(isABill("Water")).toBe("Water is a bill.");
     expect([C.logWithBill, C.addANote]).toEqual(["Log it with Pick a bill", "Add a note"]);
+  });
+  it("words settling up", () => {
+    const N = { p1: "Alex", p2: "Sam" };
+    expect([settleHero(500, "p1", "p1", "p2", N), settleHero(500, "p2", "p1", "p2", N), settleHero(0, "p1", "p1", "p2", N)])
+      .toEqual(["You owe Sam", "Alex owes you", "You’re even ⚖️"]);
+    expect([periodLine(2, "2026-09-29", "2026-09-30"), periodLine(1, "2026-09-29", "2026-09-29")]).toEqual(["2 expenses, Sep 29 – Sep 30", "1 expense, Sep 29"]);
+    expect([payVenmo("Sam"), requestVenmo("Sam")]).toEqual(["Pay Sam on Venmo", "Request from Sam on Venmo"]);
+    expect([confirmTitle("pay", "Sam", "$377.44"), confirmTitle("charge", "Sam", "$377.44"), confirmTitle("even", "Sam", "$0.00")])
+      .toEqual(["Did you pay Sam $377.44?", "Did Sam pay you $377.44?", "Close this period?"]);
+    expect([confirmBody(12), confirmBody(1)]).toEqual([
+      "This starts a fresh balance. All 12 expenses move to History, where you can always see them.",
+      "This starts a fresh balance. The 1 expense moves to History, where you can always see it."]);
+    expect([C.settleUp, C.howWeGot, C.paidOther, C.closePeriod, C.yesClose]).toEqual(["Settle up", "How we got this", "Paid another way", "Close this period", "Yes, close it"]);
   });
 });

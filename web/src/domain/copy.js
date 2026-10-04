@@ -131,6 +131,16 @@ export const atLine = (name, isBill) => `${isBill ? "for" : "at"} ${name}`;
 export const splitLine = (other, split, cents) => split === "full" ? "Owed in full" : `50/50, ${other} owes ${fmt(Math.round(cents / 2))}`;
 export const dateLabel = d => d === todayISO() ? "Today" : shortDate(d);
 
+/* ---------- Settle up ---------- */
+export const settleHero = (net, me, a, b, names) => net === 0 ? "You’re even ⚖️" : balanceLine(net, me, a, b, names).who;
+export const periodLine = (count, start, end) =>
+  `${count} expense${count === 1 ? "" : "s"}, ${start === end ? shortDate(start) : `${shortDate(start)} – ${shortDate(end)}`}`;
+export const payVenmo = who => `Pay ${who} on Venmo`;
+export const requestVenmo = who => `Request from ${who} on Venmo`;
+export const confirmTitle = (kind, who, amount) =>
+  kind === "even" ? "Close this period?" : kind === "pay" ? `Did you pay ${who} ${amount}?` : `Did ${who} pay you ${amount}?`;
+export const confirmBody = n => `This starts a fresh balance. ${n === 1 ? "The 1 expense moves" : `All ${n} expenses move`} to History, where you can always see ${n === 1 ? "it" : "them"}.`;
+
 /* ---------- History ---------- */
 export const settleLine = (s, names) => s.amountCents ? `${names[s.from]} paid ${names[s.to]} ${fmt(s.amountCents)}` : "Closed even";
 export const settleSub = s => `${longDate(s.date)}, ${s.count} expense${s.count === 1 ? "" : "s"}${s.method === "venmo" ? ", via Venmo" : ""}`;
@@ -196,6 +206,7 @@ export const C = {
   pwWrongCurrent: "That current password isn’t right.", pwSaved: "Password saved.", pwFailed: "Couldn’t save the password. Try again.",
   appName: "Expenses",
   add: "Add expense",
+  settleUp: "Settle up", howWeGot: "How we got this", paidOther: "Paid another way", closePeriod: "Close this period", yesClose: "Yes, close it",
   next: "Next", log: "Log expense", reviewTitle: "Look good?", pickBill: "Pick a bill", clear: "Clear", done: "Done", storeDefault: "Store’s default",
   billsHelp: "Bills are your recurring shared costs, kept separate from everyday expenses. Each one fills in its usual amount. Change it on the keypad if this month’s is different.",
   logWithBill: "Log it with Pick a bill", addANote: "Add a note",
