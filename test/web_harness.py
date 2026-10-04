@@ -38,6 +38,11 @@ def title_top(pg): return pg.evaluate("document.getElementById('screen-title').g
 def off_scale_buttons(pg):
     return pg.evaluate("""() => [...document.querySelectorAll('[data-slot=button]')].filter(b => b.getClientRects().length && getComputedStyle(b).fontSize !== '16px')
       .map(b => `"${b.textContent.trim().slice(0, 30)}" ${getComputedStyle(b).fontSize}`)""")
+# Form labels use the type scale's label size (12/16, weight 500).
+def off_scale_labels(pg):
+    return pg.evaluate("""() => [...document.querySelectorAll('[data-slot=label]')].filter(l => { const s = getComputedStyle(l);
+        return l.getClientRects().length && (s.fontSize !== '12px' || s.lineHeight !== '16px' || s.fontWeight !== '500'); })
+      .map(l => { const s = getComputedStyle(l); return `"${l.textContent.trim().slice(0, 30)}" ${s.fontSize}/${s.lineHeight} ${s.fontWeight}`; })""")
 def text_and_html(pg): return pg.evaluate("document.body.innerText + '\\n' + document.documentElement.outerHTML")
 
 # Design language: every tap target is at least 44×44px. A control counts as big enough when its own box is,
