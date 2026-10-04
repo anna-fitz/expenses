@@ -129,7 +129,7 @@ function renderProfile() {
         <fieldset class="fs"><legend class="sr">Theme</legend><div class="segr three">
           ${[["system", "Match phone"], ["light", "Light"], ["dark", "Dark"]].map(([v, l]) => `<label><input type="radio" name="p-theme" value="${v}" ${p.theme === v ? "checked" : ""}><span>${l}</span></label>`).join("")}
         </div></fieldset></section>
-      <!--stats-->
+      ${statsHTML()}
       <section aria-labelledby="h-acct"><h2 id="h-acct" class="sec">Account</h2>
         <div class="card"><p style="margin:0 0 4px;font-weight:600">Signed in as ${esc(PEOPLE[me])}</p>
           <p class="muted small" style="margin:0">${esc(S.user ? S.user.email : "")}</p>
@@ -137,6 +137,28 @@ function renderProfile() {
     </div></div>
     <footer class="dock"><div class="inner"><button class="btn" data-act="close">Back</button></div></footer>
   </div>`);
+}
+// Local arithmetic only: no extra reads.
+function periodStats() {
+  const list = S.expenses; if (!list.length) return null;
+  const last = S.settlements[0], start = last ? last.date : list.map(e => e.date).sort()[0];
+  const by = {};
+  for (const e of list) { const m = by[e.merchant] = by[e.merchant] || { name: e.merchant, count: 0, cents: 0 }; m.count++; m.cents += e.amountCents | 0; }
+  return {
+    days: daysBetween(start, todayISO()), since: last ? "settle" : "first",
+    total: list.reduce((s, e) => s + (e.amountCents | 0), 0),
+    top: Object.values(by).sort((a, b) => b.count - a.count || b.cents - a.cents)[0],
+    big: list.slice().sort((a, b) => b.amountCents - a.amountCents)[0]
+  };
+}
+function statsHTML() {
+  const s = periodStats();
+  const body = !s ? `<p class="muted">${esc(C.statsEmpty)}</p>` : `<dl class="stats">
+    <div class="stat"><dt>${esc(s.since === "settle" ? C.statDaysSettle : C.statDaysFirst)}</dt><dd>${s.days}</dd></div>
+    <div class="stat"><dt>${esc(C.statTotal)}</dt><dd>${fmt(s.total)}</dd></div>
+    <div class="stat"><dt>${esc(C.statTop)}</dt><dd>${esc(s.top.name)}<small>${s.top.count} expense${s.top.count === 1 ? "" : "s"}</small></dd></div>
+    <div class="stat"><dt>${esc(C.statBig)}</dt><dd>${fmt(s.big.amountCents)}<small>${esc(s.big.merchant)}</small></dd></div></dl>`;
+  return `<section aria-labelledby="h-stats"><h2 id="h-stats" class="sec">${esc(C.statsHeading)}</h2>${body}</section>`;
 }
 function saveProfile(patch) {
   const next = Object.assign(profileOf(S.me), patch, { updatedAt: Date.now() });

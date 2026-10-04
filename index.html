@@ -203,6 +203,11 @@ button{cursor:pointer;touch-action:manipulation}
 .sw{width:22px;height:22px;border-radius:50%;background:var(--sw-l);flex:none}
 .btnrow{display:flex;gap:10px;margin-top:14px}
 .legend > span{display:inline-flex;align-items:center;gap:6px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:12px 14px}
+.stat dt{font-size:13px;color:var(--muted)}
+.stat dd{margin:4px 0 0;font-size:20px;font-weight:700;overflow-wrap:anywhere}
+.stat dd small{display:block;font-size:13px;font-weight:400;color:var(--muted)}
 /* Toast */
 .toast{position:fixed;left:16px;right:16px;bottom:calc(max(var(--safe-b),12px) + 92px);z-index:30;max-width:488px;margin:0 auto;
   background:var(--ink);color:var(--bg);border-radius:var(--r-sm);padding:6px 6px 6px 16px;display:flex;align-items:center;gap:4px;min-height:52px;font-size:15px}
