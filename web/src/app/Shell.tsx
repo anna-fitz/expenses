@@ -6,11 +6,12 @@ import { signOutAndErase } from "@/data/session";
 import { C } from "@/domain/copy.js";
 import { PERSON_COLORS, inkOn, resolveColors } from "@/domain/people";
 import { cn } from "@/lib/utils";
+import { AddSheet } from "@/features/add/AddSheet";
 import { HomeScreen } from "@/features/home/HomeScreen";
 import { Onboarding } from "./Onboarding";
 import { PlaceholderScreen } from "./PlaceholderScreen";
 import { PrivacyScreen } from "./PrivacyScreen";
-import { useRoute } from "./route";
+import { openSheet, useRoute } from "./route";
 import { SecurityNote } from "./SecurityNote";
 import { TabBar } from "./TabBar";
 import { applyTheme } from "./theme";
@@ -30,9 +31,10 @@ export function Shell() {
   if (me === undefined) return null;          // profile not loaded yet (avoids flashing onboarding)
   if (!me.onboarded) return <Onboarding />;
   const them = people.names[people.them];
+  const page = route.tab === "settings" && !!route.sub;   // a page inside a tab has a back link, so less room on top
   return (
     <div className="flex h-dvh flex-col">
-      <main className={cn("flex-1 overflow-y-auto px-5 pb-6", route.sub ? "pt-[calc(env(safe-area-inset-top)+16px)]" : "pt-[calc(env(safe-area-inset-top)+40px)]")}>
+      <main className={cn("flex-1 overflow-y-auto px-5 pb-6", page ? "pt-[calc(env(safe-area-inset-top)+16px)]" : "pt-[calc(env(safe-area-inset-top)+40px)]")}>
         <div className="mx-auto max-w-xl">
           {route.tab === "home" && <HomeScreen />}
           {route.tab === "history" && <PlaceholderScreen title={C.tabHistory} />}
@@ -54,7 +56,15 @@ export function Shell() {
           )}
         </div>
       </main>
+      {route.tab === "home" && (
+        <div className="px-5 pt-2 pb-3">
+          <div className="mx-auto max-w-xl">
+            <Button size="lg" className="h-13 w-full text-body" data-act="add" onClick={() => openSheet("#/add")}>{C.add}</Button>
+          </div>
+        </div>
+      )}
       <TabBar tab={route.tab} />
+      {route.sub === "add" && <AddSheet />}
     </div>
   );
 }

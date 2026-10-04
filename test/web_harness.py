@@ -56,3 +56,29 @@ def small_targets(pg):
         return !ok(r) && !(l && ok(l.getBoundingClientRect()));
       })
       .map(el => `${el.tagName.toLowerCase()}${el.id ? '#' + el.id : ''} "${(el.textContent || '').trim().slice(0, 30)}" ${Math.round(el.getBoundingClientRect().width)}x${Math.round(el.getBoundingClientRect().height)}`)""")
+
+# ---- Sheets, the add flow, and toasts (ids and data-act values match the old app's) ----
+def start_add(pg): pg.click('[data-act=add]'); pg.wait_for_selector('#layer-title'); pg.wait_for_timeout(50)
+def keys(pg, s):
+    for ch in s: pg.click(f'[data-act=key][data-k="{ch}"]')
+def next_step(pg): pg.click('[data-act=next]'); pg.wait_for_timeout(80)
+def save_at_store(pg, store_id):
+    pg.fill('#w-q', ''); pg.check(f'input[name=store][value="{store_id}"]'); pg.click('#w-save'); pg.wait_for_timeout(150)
+def save_new_store(pg, name, category):
+    pg.fill('#w-q', name); pg.check('input[name=store][value=__new__]'); pg.select_option('#w-cat', category); pg.click('#w-save'); pg.wait_for_timeout(150)
+def open_details(pg): pg.click('[data-act=toggle-opts]')
+def set_split(pg, v): pg.check(f'input[name=o-split][value={v}]')
+def sheet_open(pg): return pg.locator('#layer').count() > 0
+def close_sheet(pg): pg.keyboard.press('Escape'); pg.wait_for_timeout(200)
+def toast_text(pg): return pg.evaluate("document.querySelector('[data-sonner-toaster]')?.innerText || ''")
+def toast_btn(pg, act): pg.click(f'[data-toast={act}]'); pg.wait_for_timeout(150)
+def store_names(pg): return pg.evaluate("[...document.querySelectorAll('#w-list .name')].map(e => e.textContent)")
+def store_values(pg): return pg.evaluate("[...document.querySelectorAll('input[name=store]')].map(i => i.value)")
+def checked(pg, name): return pg.evaluate(f"document.querySelector('input[name={name}]:checked')?.value ?? null")
+def fs_delete(pg, path):
+    pg.evaluate("(segs) => { const S = window.__fbStore, b = S.writeBatch(); b.delete(S.doc({}, ...segs)); return b.commit(); }", path.split('/'))
+    pg.wait_for_timeout(100)
+def fs_batch(pg, items):
+    pg.evaluate("""(items) => { const S = window.__fbStore, b = S.writeBatch();
+      for (const [path, data] of items) b.set(S.doc({}, ...path.split('/')), data, {merge: true}); return b.commit(); }""", [[p, d] for p, d in items])
+    pg.wait_for_timeout(150)
