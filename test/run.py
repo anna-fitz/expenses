@@ -2,9 +2,9 @@ import os, sys, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from playwright.sync_api import sync_playwright
 from harness import R, ERRS, check, start_server, launch
-import suite_core, suite_layers, suite_voice, suite_activity, suite_add, suite_edit, suite_profile
+import suite_core, suite_layers, suite_voice, suite_activity, suite_add, suite_edit, suite_profile, suite_history
 
-SUITES = [suite_core, suite_layers, suite_voice, suite_activity, suite_add, suite_edit, suite_profile]
+SUITES = [suite_core, suite_layers, suite_voice, suite_activity, suite_add, suite_edit, suite_profile, suite_history]
 
 srv = start_server(); time.sleep(1)
 try:

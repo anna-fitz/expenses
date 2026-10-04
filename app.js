@@ -4,7 +4,7 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendP
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, query, where,
   orderBy, limit, onSnapshot, setDoc, getDoc, getDocs, writeBatch, increment }
   from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { fmt, iso, todayISO, parseISO, daysBetween, shortDate, longDate, dayLabel, timeOf, greeting, balanceLine, sinceLine, savedLine, C, COLOR_NAMES, EMOJI_NAMES, colorMoved } from "./copy.js";
+import { fmt, iso, todayISO, parseISO, daysBetween, shortDate, longDate, dayLabel, timeOf, greeting, balanceLine, sinceLine, savedLine, activityLine, C, COLOR_NAMES, EMOJI_NAMES, colorMoved } from "./copy.js";
 import { esc, openLayer, closeLayer, resetLayer, keepFocus, announce, setTitle, toast, hideToast } from "./ui.js";
 
 /* ---------------- Config ---------------- */
@@ -56,7 +56,8 @@ catch (e) { db = initializeFirestore(app, {}); }
 
 /* ---------------- State & helpers ---------------- */
 const S = { user: null, me: null, view: "home", expenses: [], merchants: {}, bills: [], settlements: [],
-  loaded: false, pending: false, online: navigator.onLine, unsubs: [], layer: null, profiles: {} };
+  loaded: false, pending: false, online: navigator.onLine, unsubs: [], layer: null, profiles: {},
+  historyTab: "settle", activity: [], activityLimit: 100, activityLoaded: false, activityError: false, activityUnsub: null };
 const $ = s => document.querySelector(s);
 const slug = s => String(s).toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80) || "store";
 function toCents(str) {
@@ -289,18 +290,45 @@ function rowHTML(e, editable) {
   return editable ? `<button class="row" data-act="edit" data-id="${esc(e.id)}">${inner}</button>` : `<div class="row">${inner}</div>`;
 }
 function historyHTML() {
-  let list = "";
-  if (!S.settlements.length) list = `<div class="card empty"><h2>No settle-ups yet</h2><p class="muted" style="margin:0">When you mark a balance as paid, it’s saved here with every expense it covered.</p></div>`;
-  else list = `<div class="rows" style="margin-top:8px">` + S.settlements.map(s => {
+  const tab = S.historyTab;
+  const tabs = `<fieldset class="fs" style="margin-bottom:12px"><legend class="sr">Show</legend><div class="segr">
+    <label><input type="radio" name="h-tab" value="settle" ${tab === "settle" ? "checked" : ""}><span>Settle-ups</span></label>
+    <label><input type="radio" name="h-tab" value="activity" ${tab === "activity" ? "checked" : ""}><span>Activity</span></label></div></fieldset>`;
+  return `<div class="frame">
+    <header class="top"><div class="inner" style="display:flex;align-items:center"><h1>History</h1></div></header>
+    <div class="scroll"><div class="inner">${tabs}${tab === "settle" ? settleListHTML() : activityHTML()}</div></div>
+    <footer class="dock"><div class="inner"><button class="btn" data-act="home">Back to expenses</button></div></footer>
+  </div>`;
+}
+function settleListHTML() {
+  if (!S.settlements.length) return `<div class="card empty"><h2>No settle-ups yet</h2><p class="muted" style="margin:0">When you mark a balance as paid, it’s saved here with every expense it covered.</p></div>`;
+  return `<div class="rows">` + S.settlements.map(s => {
     const line = s.amountCents ? `${PEOPLE[s.from]} paid ${PEOPLE[s.to]} ${fmt(s.amountCents)}` : "Closed even";
     return `<button class="row" data-act="detail" data-id="${esc(s.id)}"><span class="main"><span class="t">${esc(line)}</span>
       <span class="s">${esc(longDate(s.date))}, ${s.count} expense${s.count === 1 ? "" : "s"}</span></span></button>`;
   }).join("") + `</div>`;
-  return `<div class="frame">
-    <header class="top"><div class="inner" style="display:flex;align-items:center"><h1>History</h1></div></header>
-    <div class="scroll"><div class="inner">${list}</div></div>
-    <footer class="dock"><div class="inner"><button class="btn" data-act="home">Back to expenses</button></div></footer>
-  </div>`;
+}
+function activityHTML() {
+  if (S.activityError) return `<p class="err left">${esc(C.activityError)}</p>`;
+  if (!S.activityLoaded) return `<p class="muted">Loading activity…</p>`;
+  if (!S.activity.length) return `<div class="card empty"><p class="muted" style="margin:0">${esc(C.emptyActivity)}</p></div>`;
+  let out = "", cur = null;
+  for (const a of S.activity) {
+    const day = iso(new Date(a.at));
+    if (day !== cur) { if (cur !== null) out += `</ul></section>`; cur = day; out += `<section class="group"><h2>${esc(dayLabel(day))}</h2><ul class="rows plain">`; }
+    out += `<li class="row act"><span class="main"><span class="t wrap">${esc(activityLine(a, PEOPLE))}</span><span class="s">${esc(timeOf(a.at))}</span></span></li>`;
+  }
+  out += `</ul></section>`;
+  if (S.activity.length >= S.activityLimit) out += `<button class="btn" data-act="more-activity" style="width:100%;margin-top:14px">Show more</button>`;
+  return out;
+}
+function subscribeActivity() {
+  if (S.activityUnsub) S.activityUnsub();
+  S.activityLoaded = false; S.activityError = false;
+  S.activityUnsub = onSnapshot(query(collection(db, "activity"), orderBy("at", "desc"), limit(S.activityLimit)), snap => {
+    S.activity = snap.docs.map(d => Object.assign({ id: d.id }, d.data())); S.activityLoaded = true;
+    if (S.view === "history") render();
+  }, e => { console.error(e); S.activityError = true; if (S.view === "history") render(); });
 }
 
 /* ---------------- Layer helpers ---------------- */
@@ -632,7 +660,8 @@ document.addEventListener("click", ev => {
     case "settle": openSettle(); break;
     case "settle-go": settleGo(); break;
     case "profile": openProfile(); break;
-    case "history": S.view = "history"; render(); break;
+    case "history": S.view = "history"; if (S.historyTab === "activity" && !S.activityUnsub) subscribeActivity(); render(); break;
+    case "more-activity": S.activityLimit += 100; subscribeActivity(); break;
     case "home": S.view = "home"; render(); break;
     case "detail": openDetail(el.dataset.id); break;
     case "hide-install": store("hideInstall", "1"); render(); break;
@@ -646,6 +675,7 @@ document.addEventListener("click", ev => {
 document.addEventListener("change", ev => {
   const t = ev.target;
   if (t.name === "payer") A.payer = t.value;
+  if (t.name === "h-tab") { S.historyTab = t.value; if (t.value === "activity" && !S.activityUnsub) subscribeActivity(); render(); }
   if (t.name === "p-emoji") saveProfile({ emoji: t.value || null });
   if (t.name === "p-color") saveProfile({ color: t.value });
   if (t.name === "p-theme") saveProfile({ theme: t.value });
@@ -730,6 +760,7 @@ function subscribe() {
 
 onAuthStateChanged(auth, async user => {
   S.unsubs.forEach(u => u()); S.unsubs = [];
+  if (S.activityUnsub) S.activityUnsub(); Object.assign(S, { activityUnsub: null, activity: [], activityLimit: 100, historyTab: "settle" });
   S.user = user; S.profiles = {}; resetLayer(); hideToast(); S.layer = null; A.step = null;
   if (!user) { S.view = "login"; S.me = null; applyTheme(store("theme") || "system"); render(); return; }
   S.me = PEOPLE_BY_EMAIL_HASH[await sha256(String(user.email || "").trim().toLowerCase())] || null;

@@ -43,6 +43,30 @@ export function savedLine(amount, merchant, bill) {
   return `Got it. ${amount} at ${merchant}.`;
 }
 
+/* ---------- Activity log ---------- */
+const FIELD_NAMES = { amountCents: "amount", payer: "paid by", merchant: "store", category: "category", date: "date", split: "split", note: "note", covers: "covers" };
+function showVal(field, v, names) {
+  if (v === "" || v == null) return "none";
+  if (field === "amountCents") return fmt(v);
+  if (field === "payer") return names[v] || v;
+  if (field === "split") return v === "full" ? "owed in full" : "50/50";
+  if (field === "date") return shortDate(v);
+  return String(v);
+}
+export function activityLine(a, names) {
+  const who = names[a.by] || "Someone", s = a.summary || {};
+  switch (a.action) {
+    case "add": return `${who} added ${fmt(s.amountCents)} at ${s.merchant}`;
+    case "delete": return `${who} deleted ${fmt(s.amountCents)} at ${s.merchant}`;
+    case "edit": {
+      const ch = (a.changes || []).map(c => `${FIELD_NAMES[c.field] || c.field} ${showVal(c.field, c.from, names)} → ${showVal(c.field, c.to, names)}`);
+      return `${who} changed ${s.merchant}: ${ch.slice(0, 3).join(", ")}${ch.length > 3 ? `, and ${ch.length - 3} more` : ""}`;
+    }
+    case "settle": return s.amountCents ? `${who} settled up: ${names[s.from]} paid ${names[s.to]} ${fmt(s.amountCents)}` : `${who} closed an even period`;
+  }
+  return `${who} made a change`;
+}
+
 /* ---------- Fixed strings ---------- */
 export const C = {
   appName: "Shared expenses",
@@ -51,6 +75,8 @@ export const C = {
   removed: "Removed.",
   changesSaved: "Changes saved.",
   noChanges: "Nothing changed.",
+  emptyActivity: "Changes to expenses will show up here.",
+  activityError: "Couldn’t load activity. Check the security rules in Firebase.",
   statsHeading: "This period",
   statsEmpty: "Stats show up once you add expenses.",
   statDaysSettle: "Days since you settled up",
