@@ -91,3 +91,13 @@ def fs_batch(pg, items):
     pg.evaluate("""(items) => { const S = window.__fbStore, b = S.writeBatch();
       for (const [path, data] of items) b.set(S.doc({}, ...path.split('/')), data, {merge: true}); return b.commit(); }""", [[p, d] for p, d in items])
     pg.wait_for_timeout(150)
+
+# ---- Settle up ----
+import datetime as _dt
+def ago(n): return (_dt.date.today() - _dt.timedelta(days=n)).isoformat()
+def md(iso): d = _dt.date.fromisoformat(iso); return f"{d:%b} {d.day}"
+def exp_row(eid, cents, payer, split='half', date=None):
+    return (f'expenses/{eid}', {'amountCents': cents, 'payer': payer, 'merchant': 'Costco', 'category': 'Groceries', 'date': date or ago(1),
+                                'split': split, 'settled': False, 'createdBy': payer, 'createdAt': 1})
+def open_settle(pg): pg.click('[data-act=settle]'); pg.wait_for_selector('#s-amt'); pg.wait_for_timeout(250)
+def settlements(pg): return [dict(v, id=k.split('/')[1]) for k, v in st(pg).items() if k.startswith('settlements/')]

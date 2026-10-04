@@ -5,7 +5,7 @@ import { Announcer } from "./Announcer";
 // A full-screen task sheet: named by its title, focus moves to the title and stays inside,
 // Escape or the phone's Back closes it, and focus returns to whatever opened it.
 export function Sheet({ title, step, context, headerAction, banner, actions, onClose, children }: {
-  title: string; step?: string; context?: ReactNode; headerAction?: ReactNode; banner?: ReactNode; actions: ReactNode; onClose: () => void; children: ReactNode;
+  title: string; step?: string; context?: ReactNode; headerAction?: ReactNode; banner?: ReactNode; actions?: ReactNode; onClose: () => void; children: ReactNode;
 }) {
   const h1 = useRef<HTMLHeadingElement>(null);
   // Radix returns focus only to a Dialog.Trigger; these sheets open from the URL, so remember what had focus.
@@ -37,9 +37,11 @@ export function Sheet({ title, step, context, headerAction, banner, actions, onC
           </header>
           <div ref={scroll} className="scroll flex-1 overflow-y-auto px-5 pb-4"><div className="mx-auto flex min-h-full max-w-xl flex-col gap-4">{children}</div></div>
           {banner}
+          {actions != null && (
           <footer className="dock border-t bg-card px-5 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)]">
             <div className="mx-auto flex max-w-xl gap-3">{actions}</div>
           </footer>
+          )}
           <Announcer />
         </D.Content>
       </D.Portal>

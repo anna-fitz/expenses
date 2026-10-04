@@ -8,6 +8,7 @@ import { PERSON_COLORS, inkOn, resolveColors } from "@/domain/people";
 import { cn } from "@/lib/utils";
 import { AddSheet } from "@/features/add/AddSheet";
 import { EditSheet } from "@/features/expenses/EditSheet";
+import { SettleSheet } from "@/features/settle/SettleSheet";
 import { HistoryScreen } from "@/features/history/HistoryScreen";
 import { SettlementSheet } from "@/features/history/SettlementSheet";
 import { HomeScreen } from "@/features/home/HomeScreen";
@@ -69,6 +70,7 @@ export function Shell() {
       <TabBar tab={route.tab} />
       {route.sub === "add" && <AddSheet />}
       {route.sub === "edit" && route.id && <EditSheet key={route.id} id={route.id} />}
+      {route.tab === "home" && route.sub === "settle" && <SettleSheet />}
       {route.tab === "history" && route.sub === "settle" && route.id && <SettlementSheet key={route.id} id={route.id} />}
     </div>
   );

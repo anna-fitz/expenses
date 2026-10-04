@@ -1,10 +1,11 @@
 import { collection, doc, getDocs, increment, query, setDoc, where, writeBatch, type WriteBatch } from "firebase/firestore";
 import { toast } from "sonner";
-import { C } from "@/domain/copy.js";
+import { C, todayISO } from "@/domain/copy.js";
 import { editChanges, sameMonth, summaryOf, type Change } from "@/domain/expenses";
+import { settlementRecord } from "@/domain/settle";
 import { canonicalSlug, slug } from "@/domain/stores.js";
 import { db } from "./firebase";
-import type { Expense, Merchant, Person } from "./types";
+import type { Expense, Merchant, People, Person } from "./types";
 
 export type ExpenseFields = Pick<Expense, "amountCents" | "payer" | "merchant" | "category" | "date" | "split"> & { note: string; covers: string };
 export type NewExpense = ExpenseFields & { billId: string | null };
@@ -75,4 +76,22 @@ export function deleteExpense(orig: Expense, by: Person) {
 export async function settledExpenses(settlementId: string): Promise<Expense[]> {
   const s = await getDocs(query(collection(db, "expenses"), where("settlementId", "==", settlementId)));
   return s.docs.map((d) => ({ id: d.id, ...d.data() }) as Expense);
+}
+// The one place a settle-up is written: the record, its activity entry, and every unsettled expense marked settled.
+// Same shape as the current app. Batches hold at most 450 writes (Firestore allows 500).
+export function recordSettlement(list: Expense[], people: People, method: "venmo" | null): string | null {
+  if (!list.length) return null;
+  const sref = doc(collection(db, "settlements"));
+  const rec = { ...settlementRecord(list, people.a, people.b, people.me, todayISO()), ...(method ? { method } : {}) };
+  const ops: ((b: WriteBatch) => void)[] = [
+    (b) => b.set(sref, rec),
+    (b) => logEntry(b, people.me, { action: "settle", settlementId: sref.id, summary: { amountCents: rec.amountCents, from: rec.from, to: rec.to } }),
+    ...list.map((e) => (b: WriteBatch) => b.update(doc(db, "expenses", e.id), { settled: true, settlementId: sref.id })),
+  ];
+  for (let i = 0; i < ops.length; i += 450) {
+    const b = writeBatch(db);
+    ops.slice(i, i + 450).forEach((f) => f(b));
+    b.commit().catch(writeFailed);
+  }
+  return sref.id;
 }

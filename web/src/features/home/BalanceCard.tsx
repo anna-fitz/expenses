@@ -1,12 +1,14 @@
+import { openSheet } from "@/app/route";
 import { BalanceBar } from "@/components/BalanceBar";
 import { PersonAvatar } from "@/components/PersonAvatar";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useData } from "@/data/data";
-import { balanceLine, daysBetween, fmt, sinceLine, todayISO } from "@/domain/copy.js";
-import { calc } from "@/domain/money";
+import { C, balanceLine, daysBetween, fmt, sinceLine, todayISO } from "@/domain/copy.js";
+import { calc, nudgeText } from "@/domain/money";
 
 export function BalanceCard() {
-  const { people, expenses, settlements } = useData(), { me, them, a, b, names } = people;
+  const { people, expenses, settlements, settings } = useData(), { me, them, a, b, names } = people;
   const t = calc(expenses, a, b), bl = balanceLine(t.net, me, a, b, names), mine = t.paid[me], theirs = t.paid[them], last = settlements[0];
   const slot = (p: string) => (p === a ? "a" : "b") as "a" | "b";
   return (
@@ -20,6 +22,9 @@ export function BalanceCard() {
         <span className="inline-flex items-center gap-1.5"><PersonAvatar who={them} size={18} /><span>{names[them]} paid <span className="tabular-nums">{fmt(theirs)}</span></span></span>
       </div>
       <p className="since mt-3 text-caption text-muted-foreground">{sinceLine(expenses.length, last ? last.date : null, last ? daysBetween(last.date, todayISO()) : 0)}</p>
+      {expenses.length > 0 && !nudgeText(expenses, settlements, settings, a, b) && (
+        <Button variant="outline" size="lg" className="mt-4 h-11 w-full text-body" data-act="settle" onClick={() => openSheet("#/settle")}>{C.settleUp}</Button>
+      )}
     </Card>
   );
 }
