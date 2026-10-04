@@ -92,6 +92,8 @@ export const mergeHelp = name => `Past expenses at ${name} will show and count u
 
 export const billExists = name => `There’s already a bill called ${name}`;
 
+export const dupLine = (who, amount, kind, name, date) => `${who} added ${amount} ${kind === "bill" ? "for" : "at"} ${name} on ${date}. Add this one too?`;
+
 /* ---------- Fixed strings ---------- */
 export const C = {
   appName: "Shared expenses",

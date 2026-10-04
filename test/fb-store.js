@@ -39,7 +39,7 @@ export async function setDoc(ref,data,opts){ maybeFail(); apply(ref.path,data,op
 export async function updateDoc(ref,data){ maybeFail(); if(!store[ref.path]) throw {code:'not-found'}; apply(ref.path,data,true); notify(); }
 export async function deleteDoc(ref){ maybeFail(); delete store[ref.path]; notify(); }
 export async function getDoc(ref){ return mkDoc(ref.path); }
-export async function getDocs(q){ return run(q.kind?q:{path:q.path,cs:[]}); }
+export async function getDocs(q){ if(window.__slowGetDocs) await new Promise(r=>setTimeout(r,window.__slowGetDocs)); return run(q.kind?q:{path:q.path,cs:[]}); }
 export function writeBatch(){ const ops=[]; return {
   set:(r,d,o)=>ops.push(()=>apply(r.path,d,o&&o.merge)),
   update:(r,d)=>ops.push(()=>apply(r.path,d,true)),

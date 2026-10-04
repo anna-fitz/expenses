@@ -4,7 +4,7 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendP
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, query, where,
   orderBy, limit, onSnapshot, setDoc, getDoc, getDocs, writeBatch, increment }
   from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { fmt, iso, todayISO, parseISO, daysBetween, shortDate, longDate, dayLabel, timeOf, greeting, balanceLine, sinceLine, savedLine, activityLine, storeExists, mergeHelp, billExists, C, COLOR_NAMES, EMOJI_NAMES, colorMoved } from "./copy.js";
+import { fmt, iso, todayISO, parseISO, daysBetween, shortDate, longDate, dayLabel, timeOf, greeting, balanceLine, sinceLine, savedLine, activityLine, storeExists, mergeHelp, billExists, dupLine, C, COLOR_NAMES, EMOJI_NAMES, colorMoved } from "./copy.js";
 import { slug, canonicalSlug, canonicalName, pickerStores, removedStores, planRename } from "./stores.js";
 import { esc, openLayer, closeLayer, resetLayer, keepFocus, announce, setTitle, toast, hideToast } from "./ui.js";
 
@@ -554,7 +554,7 @@ const A = {}; // add-flow state
 function startAdd() {
   S.layer = "add";
   Object.assign(A, { step: "amount", buf: "", payer: S.me, bill: null, split: "half", date: todayISO(), note: "", covers: "",
-    category: "", showOpts: false, q: "", sel: null, newCat: "" });
+    category: "", showOpts: false, q: "", sel: null, newCat: "", dupOk: false });
   renderAmount();
 }
 function amountDisplay() {
@@ -571,6 +571,7 @@ function payerFieldset(name, value, legend = "Paid by") {
 }
 function nextLabel() { return A.bill ? `Save ${A.bill.name}, ${fmt(toCents(A.buf || "") || 0)}` : "Next: choose store"; }
 function renderAmount() {
+  A.dupOk = false;
   const bills = S.bills.filter(b => b.active !== false).sort((a, b) => (a.order || 0) - (b.order || 0));
   const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "back"];
   openLayer(`<div class="frame">
@@ -610,15 +611,22 @@ function pressKey(k) {
   A.buf = b;
   $("#amt").innerHTML = amountDisplay();
   $("#amt-err").hidden = true;
+  hideDup();
   if (A.bill) $("[data-act=next]").textContent = nextLabel();
   announceAmount();
 }
-function amountNext() {
+async function amountNext() {
   const c = toCents(A.buf || "");
   if (!c) { const e = $("#amt-err"); e.textContent = "Enter an amount"; e.hidden = false; announce("Enter an amount"); return; }
   A.cents = c;
   if (A.bill) {
-    saveNew(A.bill.name, A.bill.category || "Utilities", { billId: A.bill.id, covers: new Date().toLocaleDateString("en-US", { month: "long" }) });
+    const bill = A.bill;
+    if (!A.dupOk) {
+      const d = await billDuplicate(bill.id, A.date);
+      if (A.bill !== bill || A.step !== "amount" || $("#layer").hidden) return;   // the user moved on while we checked
+      if (d) return showDup(d, "bill", bill.name);
+    }
+    saveNew(bill.name, bill.category || "Utilities", { billId: bill.id, covers: new Date().toLocaleDateString("en-US", { month: "long" }) });
     return;
   }
   A.step = "where"; renderWhere();
@@ -642,6 +650,7 @@ function splitFieldset(name, value) {
 }
 const splitHelp = () => A.split === "full" ? `${PEOPLE[other(A.payer)]} pays back the whole ${fmt(A.cents)}.` : `${PEOPLE[other(A.payer)]} owes ${fmt(Math.round(A.cents / 2))}.`;
 function renderWhere() {
+  A.dupOk = false;
   openLayer(`<div class="frame">
     <header class="top tall"><div class="inner"><h1 id="layer-title" class="title-lg">Where was it?</h1><p class="step">Step 2 of 2</p>
       <p class="ctx small">${fmt(A.cents)}, paid by ${A.payer === S.me ? "you" : esc(PEOPLE[A.payer])} · <button class="link inline" data-act="back-amount">Edit amount</button></p></div></header>
@@ -692,17 +701,46 @@ function saveWhere() {
   const fail = (msg, el) => { err.textContent = msg; err.hidden = false; announce(msg); if (el) el.focus(); };
   if (!A.sel) return fail("Pick a store first", $("#w-list input[name=store]") || $("#w-q"));
   readOpts();
+  let name, category;
   if (A.sel === NEW) {
-    const name = cleanQ(), sel = $("#w-cat");
+    name = cleanQ(); const sel = $("#w-cat");
     if (!A.newCat) { sel.setAttribute("aria-invalid", "true"); return fail(`Pick a category for ${name}`, sel); }
-    return saveNew(name, A.newCat);
+    category = A.newCat;
+  } else {
+    const m = S.merchants[A.sel]; if (!m) return; name = m.name; category = m.category;
   }
-  const m = S.merchants[A.sel]; if (m) saveNew(m.name, m.category);
+  if (!A.dupOk) { const d = storeDuplicate(name, A.cents, A.date); if (d) return showDup(d, "store", canonicalName(S.merchants, name)); }
+  saveNew(name, category);
 }
 function readOpts() {
   const d = $("#o-date"); if (!d) return;
   A.date = d.value || todayISO(); A.category = $("#o-cat").value; A.note = $("#o-note").value.trim(); A.covers = $("#o-covers").value.trim();
 }
+
+/* ---------------- Duplicate warning ---------------- */
+const dayGap = (a, b) => (a <= b ? daysBetween(a, b) : daysBetween(b, a));
+const newestFirst = (a, b) => (b.createdAt || 0) - (a.createdAt || 0);
+function storeDuplicate(name, cents, date) {
+  const key = canonicalSlug(S.merchants, name);
+  return S.expenses.filter(e => e.amountCents === cents && canonicalSlug(S.merchants, e.merchant) === key && dayGap(e.date, date) <= 3)
+    .sort(newestFirst)[0] || null;
+}
+// Includes settled bills: reads by billId (single-field index) and filters the month here.
+async function billDuplicate(billId, date) {
+  let list;
+  try { list = (await getDocs(query(collection(db, "expenses"), where("billId", "==", billId)))).docs.map(d => d.data()); }
+  catch (e) { list = S.expenses.filter(x => x.billId === billId); }
+  return list.filter(x => (x.date || "").slice(0, 7) === date.slice(0, 7)).sort(newestFirst)[0] || null;
+}
+function showDup(e, kind, name) {
+  hideDup();
+  const by = e.createdBy || e.payer, who = by === S.me ? "You" : PEOPLE[by];
+  $("#layer .dock").insertAdjacentHTML("beforebegin", `<div class="dup" id="dup" role="alert"><div class="inner">
+    <p id="dup-msg" tabindex="-1">${esc(dupLine(who, fmt(e.amountCents), kind, name, shortDate(e.date)))}</p>
+    <div class="btnrow"><button class="btn" data-act="dup-cancel">Don’t add</button><button class="btn primary" data-act="dup-ok">Add anyway</button></div></div></div>`);
+  $("#dup-msg").focus();
+}
+function hideDup() { const d = $("#dup"); if (d) d.remove(); A.dupOk = false; }
 
 /* ---------------- Saving ---------------- */
 function saveNew(name, category, extra = {}) {
@@ -870,6 +908,8 @@ document.addEventListener("click", ev => {
     case "settle": openSettle(); break;
     case "settle-go": settleGo(); break;
     case "profile": openProfile(); break;
+    case "dup-ok": { const d = $("#dup"); if (d) d.remove(); A.dupOk = true; if (A.step === "amount") amountNext(); else saveWhere(); break; }
+    case "dup-cancel": hideDup(); ($("#w-save") || $("[data-act=next]")).focus(); break;
     case "open-bills": openBills(); break;
     case "bill-new": openBill(null); break;
     case "bill-open": openBill(el.dataset.id); break;
@@ -910,15 +950,15 @@ document.addEventListener("change", ev => {
   if (t.name === "p-theme") saveProfile({ theme: t.value });
   if (t.name === "e-payer") E.payer = t.value;
   if (t.name === "e-split") E.split = t.value;
-  if (t.name === "store") { A.sel = t.value; $("#w-err").hidden = true; if (A.sel === NEW) { A.newCat = A.newCat || A.category || ""; renderStoreList(); } else $("#w-save").textContent = saveLabel(); }
-  if (t.id === "w-cat") { A.newCat = t.value; t.removeAttribute("aria-invalid"); $("#w-err").hidden = true; }
+  if (t.name === "store") { hideDup(); A.sel = t.value; $("#w-err").hidden = true; if (A.sel === NEW) { A.newCat = A.newCat || A.category || ""; renderStoreList(); } else $("#w-save").textContent = saveLabel(); }
+  if (t.id === "w-cat") { hideDup(); A.newCat = t.value; t.removeAttribute("aria-invalid"); $("#w-err").hidden = true; }
   if (t.name === "o-split") { A.split = t.value; $("#o-split-help").textContent = splitHelp(); $("#w-sum").textContent = optsSummary(); }
 });
 document.addEventListener("input", ev => {
   if (ev.target.id === "st-q") { M.q = ev.target.value; fillStores(); }
   if (ev.target.id === "sm-q") { M.mergeQ = ev.target.value; fillMergeList(); }
-  if (ev.target.id === "w-q") { A.q = ev.target.value; renderStoreList(); }
-  if (["o-date", "o-cat", "o-note", "o-covers"].includes(ev.target.id)) { readOpts(); const s = $("#w-sum"); if (s) s.textContent = optsSummary(); }
+  if (ev.target.id === "w-q") { hideDup(); A.q = ev.target.value; renderStoreList(); }
+  if (["o-date", "o-cat", "o-note", "o-covers"].includes(ev.target.id)) { hideDup(); readOpts(); const s = $("#w-sum"); if (s) s.textContent = optsSummary(); }
 });
 document.addEventListener("keydown", ev => {
   if (A.step === "amount" && !$("#layer").hidden) {
