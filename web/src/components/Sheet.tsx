@@ -34,7 +34,7 @@ export function Sheet({ title, step, context, headerAction, banner, actions, onC
               {headerAction}
             </div>
           </header>
-          <div className="scroll flex-1 overflow-y-auto px-5 pb-4"><div className="mx-auto flex max-w-xl flex-col gap-4">{children}</div></div>
+          <div className="scroll flex-1 overflow-y-auto px-5 pb-4"><div className="mx-auto flex min-h-full max-w-xl flex-col gap-4">{children}</div></div>
           {banner}
           <footer className="dock border-t bg-card px-5 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)]">
             <div className="mx-auto flex max-w-xl gap-3">{actions}</div>

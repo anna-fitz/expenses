@@ -62,12 +62,21 @@ def start_add(pg): pg.click('[data-act=add]'); pg.wait_for_selector('#layer-titl
 def keys(pg, s):
     for ch in s: pg.click(f'[data-act=key][data-k="{ch}"]')
 def next_step(pg): pg.click('[data-act=next]'); pg.wait_for_timeout(80)
-def save_at_store(pg, store_id):
-    pg.fill('#w-q', ''); pg.check(f'input[name=store][value="{store_id}"]'); pg.click('#w-save'); pg.wait_for_timeout(150)
+def log_it(pg): pg.click('[data-act=log]'); pg.wait_for_timeout(150)
+def save_at_store(pg, store_id):   # step 2 → review → Log expense
+    pg.fill('#w-q', ''); pg.check(f'input[name=store][value="{store_id}"]'); next_step(pg); log_it(pg)
 def save_new_store(pg, name, category):
-    pg.fill('#w-q', name); pg.check('input[name=store][value=__new__]'); pg.select_option('#w-cat', category); pg.click('#w-save'); pg.wait_for_timeout(150)
-def open_details(pg): pg.click('[data-act=toggle-opts]')
+    pg.fill('#w-q', name); pg.check('input[name=store][value=__new__]'); pg.select_option('#w-cat', category); next_step(pg); log_it(pg)
+def open_details(pg): pg.click('[data-act=details]'); pg.wait_for_selector('#details'); pg.wait_for_timeout(100)
+def details_done(pg): pg.click('[data-act=details-done]'); pg.wait_for_timeout(200)
 def set_split(pg, v): pg.check(f'input[name=o-split][value={v}]')
+def pick_bill(pg, bill_id):
+    pg.click('[data-act=pick-bill]'); pg.wait_for_selector('#bills'); pg.click(f'#bills [data-act=bill][data-id={bill_id}]'); pg.wait_for_timeout(200)
+def rv(pg, key): return pg.inner_text(f'[data-row={key}] .v')
+def options(pg, sel): return pg.evaluate(f"[...document.querySelectorAll('{sel} option')].map(o => o.textContent)")
+def focused_in(pg, el_id): return pg.evaluate(f"document.getElementById('{el_id}')?.contains(document.activeElement) ?? false")
+ORDER = ['Car & fuel', 'Coffee', 'Dining & takeout', 'Drinks & smoke shop', 'Gifts & occasions', 'Groceries', 'Home & household',
+         'Pets', 'Pool & yard', 'Travel & fun', 'Utilities', 'Other']
 def sheet_open(pg): return pg.locator('#layer').count() > 0
 def close_sheet(pg): pg.keyboard.press('Escape'); pg.wait_for_timeout(200)
 def toast_text(pg): return pg.evaluate("document.querySelector('[data-sonner-toaster]')?.innerText || ''")
