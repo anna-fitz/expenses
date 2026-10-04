@@ -33,5 +33,7 @@
   * { @apply border-border outline-ring/50; }
   html, body, #root { height: 100%; }
   body { @apply bg-background text-foreground font-sans antialiased; -webkit-tap-highlight-color: transparent; }
+  /* Toasts wait behind an open sheet (they can't be tapped there, and would cover its content). */
+  html[data-sheet] [data-sonner-toaster] { display: none; }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0s !important; transition-duration: 0s !important; } }
 }

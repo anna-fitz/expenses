@@ -16,6 +16,8 @@ export function Sheet({ title, step, context, headerAction, banner, actions, onC
   };
   useEffect(() => { const prev = document.title; document.title = `${title} · Expenses`; return () => { document.title = prev; }; }, [title]);
   useEffect(() => { h1.current?.focus(); }, [title]);   // a new step is a new screen
+  // A toast with actions stays until dismissed; while a sheet covers the page, hide it (index.css) instead of letting it cover the sheet.
+  useEffect(() => { document.documentElement.dataset.sheet = ""; return () => { delete document.documentElement.dataset.sheet; }; }, []);
   return (
     <D.Root open onOpenChange={(o) => { if (!o) onClose(); }}>
       <D.Portal>
