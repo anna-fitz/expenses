@@ -101,6 +101,13 @@ export const payOnVenmo = (who, amount) => `Pay ${who} ${amount} on Venmo`;
 export const requestOnVenmo = (who, amount) => `Request ${amount} from ${who} on Venmo`;
 export const noVenmo = who => `${who} hasn’t added a Venmo username yet. They can add it in Profile.`;
 
+export const fmtWhole = c => "$" + (c / 100).toLocaleString("en-US");
+export function nudgeLine(days, limit, settledBefore) {
+  if (days != null && limit) return `It’s been ${days} days and the balance is over ${limit}.`;
+  if (days != null) return `It’s been ${days} days since ${settledBefore ? "you settled up" : "your first expense"}.`;
+  return `The balance is over ${limit}.`;
+}
+
 /* ---------- Fixed strings ---------- */
 export const C = {
   appName: "Shared expenses",
@@ -109,6 +116,7 @@ export const C = {
   removed: "Removed.",
   changesSaved: "Changes saved.",
   noChanges: "Nothing changed.",
+  reminderTitle: "Settle-up reminder", reminderHelp: "This applies to both of you.", reminderSaved: "Reminder saved.", remindAfter: "Remind us after", remindOver: "Or when the balance is over",
   venmoAskPay: "Did the Venmo payment go through?", venmoAskRequest: "Did the Venmo request get paid?", venmoYes: "Yes, mark as paid", venmoNo: "Not yet",
   venmoInvalid: "Use 5–30 letters, numbers, dashes, or underscores", venmoSaved: "Venmo username saved.", venmoRemoved: "Venmo username removed.",
   checking: "Checking…",

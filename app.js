@@ -4,7 +4,7 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendP
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, query, where,
   orderBy, limit, onSnapshot, setDoc, getDoc, getDocs, writeBatch, increment }
   from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { fmt, iso, todayISO, parseISO, daysBetween, shortDate, longDate, dayLabel, timeOf, greeting, balanceLine, sinceLine, savedLine, activityLine, storeExists, mergeHelp, billExists, dupLine, venmoHelp, settleNote, payOnVenmo, requestOnVenmo, noVenmo, C, COLOR_NAMES, EMOJI_NAMES, colorMoved } from "./copy.js";
+import { fmt, iso, todayISO, parseISO, daysBetween, shortDate, longDate, dayLabel, timeOf, greeting, balanceLine, sinceLine, savedLine, activityLine, storeExists, mergeHelp, billExists, dupLine, venmoHelp, settleNote, payOnVenmo, requestOnVenmo, noVenmo, fmtWhole, nudgeLine, C, COLOR_NAMES, EMOJI_NAMES, colorMoved } from "./copy.js";
 import { slug, canonicalSlug, canonicalName, pickerStores, removedStores, planRename } from "./stores.js";
 import { esc, openLayer, closeLayer, resetLayer, keepFocus, announce, setTitle, toast, hideToast } from "./ui.js";
 
@@ -31,6 +31,7 @@ const EMOJI = ["🌻", "🌵", "🍋", "🍑", "🐶", "🐱", "🦊", "🐻", "
 // [light, dark]. Each passes 4.5:1 against the surface and background in its mode.
 const PALETTE = { plum: ["#8A4FA3", "#C79BDB"], green: ["#2F7D5B", "#7FC9A5"], blue: ["#2B63B5", "#8DB4F0"], teal: ["#1F7A80", "#79CDD2"],
   coral: ["#C2412D", "#F29A8A"], amber: ["#A35C00", "#F2B866"], rose: ["#B83A73", "#F0A1C4"], slate: ["#4F5D75", "#AEB9CC"] };
+const DEFAULT_SETTINGS = { nudgeDays: 60, nudgeCents: 50000 };
 const DEFAULT_PROFILE = { bre: { emoji: null, color: "plum", theme: "system", updatedAt: 0 }, kyle: { emoji: null, color: "green", theme: "system", updatedAt: 0 } };
 
 // Starting data, written once when the database is empty.
@@ -57,7 +58,7 @@ catch (e) { db = initializeFirestore(app, {}); }
 
 /* ---------------- State & helpers ---------------- */
 const S = { user: null, me: null, view: "home", expenses: [], merchants: {}, bills: [], settlements: [],
-  loaded: false, pending: false, online: navigator.onLine, unsubs: [], layer: null, profiles: {}, venmoDraft: null, venmoChecked: false,
+  loaded: false, pending: false, online: navigator.onLine, unsubs: [], layer: null, profiles: {}, venmoDraft: null, venmoChecked: false, settings: {},
   historyTab: "settle", activity: [], activityLimit: 100, activityLoaded: false, activityError: false, activityUnsub: null };
 const $ = s => document.querySelector(s);
 function toCents(str) {
@@ -138,7 +139,8 @@ function renderProfile() {
         </div></fieldset></section>
       ${statsHTML()}
       <section aria-labelledby="h-lists"><h2 id="h-lists" class="sec">Shared lists</h2>
-        <div class="btnrow" style="margin-top:0"><button class="btn" data-act="open-stores">Stores</button><button class="btn" data-act="open-bills">Bills</button></div></section>
+        <div class="btnrow" style="margin-top:0"><button class="btn" data-act="open-stores">Stores</button><button class="btn" data-act="open-bills">Bills</button></div>
+        <button class="btn" style="width:100%;margin-top:10px" data-act="open-reminder">${esc(C.reminderTitle)}</button></section>
       <section aria-labelledby="h-acct"><h2 id="h-acct" class="sec">Account</h2>
         <div class="card"><p style="margin:0 0 4px;font-weight:600">Signed in as ${esc(PEOPLE[me])}</p>
           <p class="muted small" style="margin:0">${esc(S.user ? S.user.email : "")}</p>
@@ -184,6 +186,38 @@ function saveVenmo() {
     input.setAttribute("aria-invalid", "true"); input.setAttribute("aria-describedby", "p-venmo-help p-venmo-err"); input.focus(); return;
   }
   S.venmoDraft = null; saveProfile({ venmo: v || null }); toast(v ? C.venmoSaved : C.venmoRemoved);
+}
+
+/* ---------------- Shared settle-up reminder ---------------- */
+const settingsOf = () => Object.assign({}, DEFAULT_SETTINGS, S.settings);
+function nudgeText() {
+  const list = S.expenses; if (!list.length) return null;
+  const s = settingsOf(), last = S.settlements[0];
+  const days = daysBetween(last ? last.date : list.map(e => e.date).sort()[0], todayISO()), over = Math.abs(calc(list).net);
+  const byDays = s.nudgeDays > 0 && days >= s.nudgeDays, byAmt = s.nudgeCents > 0 && over > s.nudgeCents;
+  return byDays || byAmt ? nudgeLine(byDays ? days : null, byAmt ? fmtWhole(s.nudgeCents) : null, !!last) : null;
+}
+function openReminder() { renderReminder(); }
+function renderReminder() {
+  S.layer = "reminder";
+  const s = settingsOf();
+  const group = (name, legend, opts, val) => `<fieldset class="fs" style="margin-top:14px"><legend class="label">${esc(legend)}</legend><div class="segr four">
+    ${opts.map(([v, l]) => `<label><input type="radio" name="${name}" value="${v}" ${val === v ? "checked" : ""}><span>${esc(l)}</span></label>`).join("")}</div></fieldset>`;
+  openLayer(`<div class="frame">
+    <header class="top tall"><div class="inner"><h1 id="layer-title" class="title-lg">${esc(C.reminderTitle)}</h1></div></header>
+    <div class="scroll"><div class="inner">
+      <p class="help" style="margin:0">${esc(C.reminderHelp)}</p>
+      ${group("r-days", C.remindAfter, [[0, "Off"], [30, "30 days"], [60, "60 days"], [90, "90 days"]], s.nudgeDays)}
+      ${group("r-cents", C.remindOver, [[0, "Off"], [25000, fmtWhole(25000)], [50000, fmtWhole(50000)], [100000, fmtWhole(100000)]], s.nudgeCents)}
+    </div></div>
+    <footer class="dock"><div class="inner"><button class="btn" data-act="lists-back">Back</button></div></footer>
+  </div>`);
+}
+function saveSettings(patch) {
+  const next = Object.assign(settingsOf(), patch, { updatedAt: Date.now(), updatedBy: S.me });
+  S.settings = next;
+  setDoc(doc(db, "config", "settings"), next, { merge: true }).catch(writeFailed);
+  toast(C.reminderSaved); render();
 }
 
 /* ---------------- Shared lists: stores ---------------- */
@@ -489,6 +523,7 @@ function homeHTML() {
     }
     rows += `</div></section>`;
   }
+  const nudgeMsg = nudgeText();
   const since = sinceLine(list.length, last ? last.date : null, last ? daysBetween(last.date, todayISO()) : 0);
   return `<div class="frame">
     <header class="top"><div class="inner hdr">
@@ -505,8 +540,9 @@ function homeHTML() {
         <div class="legend"><span>${avatarHTML(S.me, 18)} You paid ${fmt(mine)}</span>
           <span>${avatarHTML(them, 18)} ${esc(PEOPLE[them])} paid ${fmt(theirs)}</span></div>
         <p class="since">${esc(since)}</p>
-        ${list.length ? `<button class="btn" style="width:100%;margin-top:14px" data-act="settle">Settle up</button>` : ""}
+        ${list.length && !nudgeMsg ? `<button class="btn" style="width:100%;margin-top:14px" data-act="settle">Settle up</button>` : ""}
       </section>
+      ${nudgeMsg ? `<div class="card nudge" id="nudge"><p>${esc(nudgeMsg)}</p><button class="btn primary" style="width:100%" data-act="settle">Settle up</button></div>` : ""}
       ${rows}
     </div></div>
     <footer class="dock"><div class="inner"><button class="btn primary" data-act="add">Add expense</button></div></footer>
@@ -973,6 +1009,7 @@ document.addEventListener("click", ev => {
     case "venmo-no": store("venmoPending", ""); openSettle(); break;
     case "profile": openProfile(); break;
     case "venmo-save": saveVenmo(); break;
+    case "open-reminder": openReminder(); break;
     case "dup-ok": { const d = $("#dup"); if (d) d.remove(); A.dupOk = true; if (A.step === "amount") amountNext(); else saveWhere(); break; }
     case "dup-cancel": hideDup(); ($("#w-save") || $("[data-act=next]")).focus(); break;
     case "open-bills": openBills(); break;
@@ -1006,6 +1043,8 @@ document.addEventListener("click", ev => {
 document.addEventListener("change", ev => {
   const t = ev.target;
   if (t.name === "payer") A.payer = t.value;
+  if (t.name === "r-days") saveSettings({ nudgeDays: +t.value });
+  if (t.name === "r-cents") saveSettings({ nudgeCents: +t.value });
   if (t.name === "bf-payer") B.payer = t.value;
   if (t.id === "sd-cat") setStoreCategory(t.value);
   if (t.name === "merge-target") { M.mergeSel = t.value; $("#sm-err").hidden = true; $("#sm-go").textContent = mergeLabel(); }
@@ -1094,6 +1133,11 @@ function subscribe() {
     if (S.layer === "profile") renderProfile();
     render();
   }, err));
+  S.unsubs.push(onSnapshot(doc(db, "config", "settings"), snap => {
+    S.settings = snap.exists() ? snap.data() : {};
+    if (S.layer === "reminder") renderReminder();
+    render();
+  }, err));
   S.unsubs.push(onSnapshot(collection(db, "bills"), snap => { S.bills = snap.docs.map(d => Object.assign({ id: d.id }, d.data())); if (S.layer === "bills") renderBills(); }, err));
   S.unsubs.push(onSnapshot(query(collection(db, "settlements"), orderBy("createdAt", "desc"), limit(200)), snap => {
     S.settlements = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
@@ -1104,7 +1148,7 @@ function subscribe() {
 onAuthStateChanged(auth, async user => {
   S.unsubs.forEach(u => u()); S.unsubs = [];
   if (S.activityUnsub) S.activityUnsub(); Object.assign(S, { activityUnsub: null, activity: [], activityLimit: 100, historyTab: "settle" });
-  S.user = user; S.profiles = {}; S.venmoChecked = false; resetLayer(); hideToast(); S.layer = null; A.step = null;
+  S.user = user; S.profiles = {}; S.venmoChecked = false; S.settings = {}; resetLayer(); hideToast(); S.layer = null; A.step = null;
   if (!user) { S.view = "login"; S.me = null; applyTheme(store("theme") || "system"); render(); return; }
   S.me = PEOPLE_BY_EMAIL_HASH[await sha256(String(user.email || "").trim().toLowerCase())] || null;
   if (!S.me) { S.view = "denied"; render(); return; }
