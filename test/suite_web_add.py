@@ -259,3 +259,7 @@ def run(b):
     check('review: opens at its top after a scrolled store list', scrolled and pg.evaluate("document.querySelector('#layer .scroll').scrollTop") == 0
           and pg.locator('#rv-amt').bounding_box()['y'] >= pg.locator('#layer .scroll').bounding_box()['y'])
     c.close()
+    # Small-issue fixes: link buttons with an icon line up with the text above them
+    c = new_ctx(b); pg = open_app(c); login(pg); start_add(pg); keys(pg, '12'); next_step(pg); pg.wait_for_timeout(300)
+    check('add2: Details lines up with the Store label', pg.evaluate("(([a, b]) => { const x = document.querySelector(a), s = getComputedStyle(x); return Math.abs(x.getBoundingClientRect().left + parseFloat(s.paddingLeft) - document.querySelector(b).getBoundingClientRect().left) < 1; })", ['[data-act=details]', 'label[for=w-q]']))
+    c.close()

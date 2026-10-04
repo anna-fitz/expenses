@@ -81,7 +81,7 @@ export function SettleSheet() {
         <p id="s-period" className="text-caption text-muted-foreground">{periodLine(count, rec.periodStart, rec.periodEnd)}</p>
       </div>
       <div className="flex flex-col items-start gap-2">
-        <Button type="button" variant="link" className="h-11 px-0 text-body" data-act="how" aria-expanded={showMath} aria-controls="s-math" onClick={() => setShowMath(!showMath)}>
+        <Button type="button" variant="link" className="h-11 px-0 text-body has-[>svg]:px-0" data-act="how" aria-expanded={showMath} aria-controls="s-math" onClick={() => setShowMath(!showMath)}>
           {C.howWeGot}<ChevronDown className={cn("size-4 transition-transform", showMath && "rotate-180")} aria-hidden="true" />
         </Button>
         <dl id="s-math" className={showMath ? "math w-full rounded-xl border bg-card p-4" : "hidden"}>
@@ -92,9 +92,13 @@ export function SettleSheet() {
           ))}
         </dl>
       </div>
-      {changed && <p id="v-changed" role="alert" className="text-caption text-destructive">{C.venmoChanged}</p>}
+      {changed && <p id="v-changed" role="alert" className="text-body">{C.venmoChanged}</p>}
       {ask ? (
-        <VenmoAsk txn={ask.txn} onYes={() => record("venmo")} onNo={() => { clearPending(); setAsk(null); }} />
+        <VenmoAsk txn={ask.txn} onYes={() => record("venmo")} onNo={() => {
+          clearPending(); setAsk(null);
+          // The question card is gone: put focus on the main button that replaces it.
+          requestAnimationFrame(() => document.querySelector<HTMLElement>("a[data-act=venmo], [data-act=settle-other]")?.focus());
+        }} />
       ) : (
         <div className="flex flex-col gap-3">
           {!even && theirVenmo && (

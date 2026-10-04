@@ -32,7 +32,7 @@ export function WhereStep({ f }: { f: AddFlow }) {
       </div>
       {/* Details (note, paid by, split, date, category, covers) is one tap away above the tiles, so it never pushes the store list down. */}
       <div className="flex flex-col items-start">
-        <Button type="button" variant="link" className="h-11 px-0 text-body" data-act="details" aria-describedby="w-sum" onClick={() => f.openDetails(null)}>
+        <Button type="button" variant="link" className="h-11 px-0 text-body has-[>svg]:px-0" data-act="details" aria-describedby="w-sum" onClick={() => f.openDetails(null)}>
           <SlidersHorizontal className="size-4" aria-hidden="true" />{C.details}</Button>
         <p id="w-sum" className="text-caption text-muted-foreground">{optsSummary(dateLabel(a.date), a.split, a.category)}</p>
       </div>

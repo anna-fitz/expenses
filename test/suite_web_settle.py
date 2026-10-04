@@ -21,6 +21,7 @@ def run(b):
     rows = pg.evaluate("[...document.querySelectorAll('#s-math .r')].map(r => r.innerText.replace(/\\s+/g, ' ').trim())")
     check('settle: How we got this opens the math', pg.get_attribute('[data-act=how]', 'aria-expanded') == 'true' and rows == [
         'Sam paid, split 50/50 $0.00', 'Alex paid, split 50/50 $45.12', 'Half the difference $22.56 to Alex', 'Owed in full to Sam $400.00', 'Alex pays Sam $377.44'])
+    check('settle: How we got this lines up with the text above it', pg.evaluate("(([a, b]) => { const x = document.querySelector(a), s = getComputedStyle(x); return Math.abs(x.getBoundingClientRect().left + parseFloat(s.paddingLeft) - document.querySelector(b).getBoundingClientRect().left) < 1; })", ['[data-act=how]', '#s-who']))
     note = f'Shared expenses, {md(d1)} – {md(d2)}'
     check('settle: Pay Sam on Venmo, the main button', pg.inner_text('a[data-act=venmo]') == 'Pay Sam on Venmo'
           and pg.get_attribute('a[data-act=venmo]', 'href') == f"https://venmo.com/sam-test?txn=pay&amount=377.44&note={quote(note, safe=chr(39) + '-_.!~*()')}"
@@ -105,6 +106,7 @@ def run(b):
     pg.click('[data-act=venmo-no]'); pg.wait_for_timeout(150)
     check('venmo: Not yet clears it and shows the buttons again', pending(pg) is None and pg.locator('#v-ask').count() == 0
           and pg.locator('a[data-act=venmo]').count() == 1 and settlements(pg) == [])
+    check('venmo: after Not yet, focus is on the Venmo button', pg.evaluate('document.activeElement.dataset.act') == 'venmo')
     no_follow(pg); pg.click('a[data-act=venmo]'); close_sheet(pg)
     pg.reload(); pg.wait_for_selector('#v-ask', timeout=10000); pg.wait_for_timeout(200)
     check('venmo: reopening the app within 2 hours asks again', sheet_open(pg) and pg.inner_text('#layer-title') == 'Settle up')
@@ -124,6 +126,7 @@ def run(b):
     check('venmo: a changed balance withdraws the question', pg.locator('#v-ask').count() == 0
           and pg.inner_text('#v-changed') == 'The balance changed. Check it and try again.' and pg.get_attribute('#v-changed', 'role') == 'alert'
           and pending(pg) is None and len(settlements(pg)) == 1)
+    check('venmo: the balance-changed message is plain text, not an error color', pg.evaluate("getComputedStyle(document.getElementById('v-changed')).color === getComputedStyle(document.getElementById('layer-title')).color"))
     no_follow(pg); pg.click('a[data-act=venmo]'); close_sheet(pg)
     start_add(pg); come_back(pg)
     check('venmo: never interrupts Add', pg.inner_text('#layer-title') == 'Add expense' and pg.locator('#v-ask').count() == 0)
