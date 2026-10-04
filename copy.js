@@ -94,6 +94,8 @@ export const billExists = name => `There’s already a bill called ${name}`;
 
 export const dupLine = (who, amount, kind, name, date) => `${who} added ${amount} ${kind === "bill" ? "for" : "at"} ${name} on ${date}. Add this one too?`;
 
+export const venmoHelp = other => `The part after @. ${other}’s phone uses this to pay or request from you.`;
+
 /* ---------- Fixed strings ---------- */
 export const C = {
   appName: "Shared expenses",
@@ -102,6 +104,7 @@ export const C = {
   removed: "Removed.",
   changesSaved: "Changes saved.",
   noChanges: "Nothing changed.",
+  venmoInvalid: "Use 5–30 letters, numbers, dashes, or underscores", venmoSaved: "Venmo username saved.", venmoRemoved: "Venmo username removed.",
   checking: "Checking…",
   billSaved: "Bill saved.", billRetired: "Bill retired.", billBack: "Bill is back.", enterBillAmount: "Enter an amount, like 64.50", noBills: "No active bills.",
   storeRenamed: "Store renamed.", storesMerged: "Stores merged.", storeRemoved: "Store removed.", storeBack: "Store is back.",

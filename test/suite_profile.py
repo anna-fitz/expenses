@@ -8,7 +8,7 @@ def run(b):
     check('profile: avatar shows initial', pg.inner_text('[data-act=profile]').strip() == 'B')
     pg.click('[data-act=profile]'); pg.wait_for_timeout(50)
     check('profile: opens as a named layer', pg.inner_text('#layer-title') == 'Profile' and pg.title() == 'Profile · Expenses')
-    check('profile: sections', pg.evaluate("[...document.querySelectorAll('#layer h2')].map(h => h.textContent).join('|')") == 'Your look|Appearance|This period|Shared lists|Account')
+    check('profile: sections', pg.evaluate("[...document.querySelectorAll('#layer h2')].map(h => h.textContent).join('|')") == 'Your look|Getting paid|Appearance|This period|Shared lists|Account')
     check('profile: partner color taken', pg.is_disabled('input[name=p-color][value=green]') and 'Kyle’s color' in pg.inner_text('#layer'))
     pg.check('input[name=p-emoji][value="🌻"]'); pg.wait_for_timeout(50)
     check('profile: emoji saved', st(pg).get('config/profile-bre', {}).get('emoji') == '🌻')

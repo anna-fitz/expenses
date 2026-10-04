@@ -4,7 +4,7 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendP
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, query, where,
   orderBy, limit, onSnapshot, setDoc, getDoc, getDocs, writeBatch, increment }
   from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { fmt, iso, todayISO, parseISO, daysBetween, shortDate, longDate, dayLabel, timeOf, greeting, balanceLine, sinceLine, savedLine, activityLine, storeExists, mergeHelp, billExists, dupLine, C, COLOR_NAMES, EMOJI_NAMES, colorMoved } from "./copy.js";
+import { fmt, iso, todayISO, parseISO, daysBetween, shortDate, longDate, dayLabel, timeOf, greeting, balanceLine, sinceLine, savedLine, activityLine, storeExists, mergeHelp, billExists, dupLine, venmoHelp, C, COLOR_NAMES, EMOJI_NAMES, colorMoved } from "./copy.js";
 import { slug, canonicalSlug, canonicalName, pickerStores, removedStores, planRename } from "./stores.js";
 import { esc, openLayer, closeLayer, resetLayer, keepFocus, announce, setTitle, toast, hideToast } from "./ui.js";
 
@@ -57,7 +57,7 @@ catch (e) { db = initializeFirestore(app, {}); }
 
 /* ---------------- State & helpers ---------------- */
 const S = { user: null, me: null, view: "home", expenses: [], merchants: {}, bills: [], settlements: [],
-  loaded: false, pending: false, online: navigator.onLine, unsubs: [], layer: null, profiles: {},
+  loaded: false, pending: false, online: navigator.onLine, unsubs: [], layer: null, profiles: {}, venmoDraft: null,
   historyTab: "settle", activity: [], activityLimit: 100, activityLoaded: false, activityError: false, activityUnsub: null };
 const $ = s => document.querySelector(s);
 function toCents(str) {
@@ -106,7 +106,7 @@ function avatarHTML(p, size = 28) {
   const pr = profileOf(p);
   return `<span class="av" style="--c:var(--${p});width:${size}px;height:${size}px;font-size:${Math.round(size * 0.55)}px" aria-hidden="true">${pr.emoji ? pr.emoji : esc(PEOPLE[p][0])}</span>`;
 }
-function openProfile() { S.layer = "profile"; renderProfile(); }
+function openProfile() { S.layer = "profile"; S.venmoDraft = null; renderProfile(); }
 function renderProfile() {
   const me = S.me, them = other(me), p = profileOf(me), cols = resolveColors();
   openLayer(`<div class="frame">
@@ -126,6 +126,12 @@ function renderProfile() {
         </div></fieldset>
         ${cols.moved === me ? `<p class="help">${esc(colorMoved(PEOPLE[them], COLOR_NAMES[cols[me]]))}</p>` : ""}
       </section>
+      <section aria-labelledby="h-paid"><h2 id="h-paid" class="sec">Getting paid</h2>
+        <label class="label" for="p-venmo">Your Venmo username</label>
+        <input id="p-venmo" class="input" value="${esc(S.venmoDraft ?? (p.venmo || ""))}" autocapitalize="none" autocomplete="off" spellcheck="false" aria-describedby="p-venmo-help">
+        <p class="help" id="p-venmo-help">${esc(venmoHelp(PEOPLE[them]))}</p>
+        <p class="err left" id="p-venmo-err" hidden></p>
+        <button class="btn" style="width:100%;margin-top:10px" data-act="venmo-save">Save</button></section>
       <section aria-labelledby="h-app"><h2 id="h-app" class="sec">Appearance</h2>
         <fieldset class="fs"><legend class="sr">Theme</legend><div class="segr three">
           ${[["system", "Match phone"], ["light", "Light"], ["dark", "Dark"]].map(([v, l]) => `<label><input type="radio" name="p-theme" value="${v}" ${p.theme === v ? "checked" : ""}><span>${l}</span></label>`).join("")}
@@ -168,6 +174,16 @@ function saveProfile(patch) {
   S.profiles[S.me] = next; applyPersonColors(); applyTheme(next.theme);
   setDoc(doc(db, "config", `profile-${S.me}`), next, { merge: true }).catch(writeFailed);
   renderProfile(); render();
+}
+
+function saveVenmo() {
+  const input = $("#p-venmo"), err = $("#p-venmo-err"), v = input.value.trim().replace(/^@/, "");
+  input.removeAttribute("aria-invalid"); input.setAttribute("aria-describedby", "p-venmo-help"); err.hidden = true;
+  if (v && !/^[A-Za-z0-9_-]{5,30}$/.test(v)) {
+    err.textContent = C.venmoInvalid; err.hidden = false;
+    input.setAttribute("aria-invalid", "true"); input.setAttribute("aria-describedby", "p-venmo-help p-venmo-err"); input.focus(); return;
+  }
+  S.venmoDraft = null; saveProfile({ venmo: v || null }); toast(v ? C.venmoSaved : C.venmoRemoved);
 }
 
 /* ---------------- Shared lists: stores ---------------- */
@@ -922,6 +938,7 @@ document.addEventListener("click", ev => {
     case "settle": openSettle(); break;
     case "settle-go": settleGo(); break;
     case "profile": openProfile(); break;
+    case "venmo-save": saveVenmo(); break;
     case "dup-ok": { const d = $("#dup"); if (d) d.remove(); A.dupOk = true; if (A.step === "amount") amountNext(); else saveWhere(); break; }
     case "dup-cancel": hideDup(); ($("#w-save") || $("[data-act=next]")).focus(); break;
     case "open-bills": openBills(); break;
@@ -969,6 +986,7 @@ document.addEventListener("change", ev => {
   if (t.name === "o-split") { A.split = t.value; $("#o-split-help").textContent = splitHelp(); $("#w-sum").textContent = optsSummary(); }
 });
 document.addEventListener("input", ev => {
+  if (ev.target.id === "p-venmo") S.venmoDraft = ev.target.value;
   if (ev.target.id === "st-q") { M.q = ev.target.value; fillStores(); }
   if (ev.target.id === "sm-q") { M.mergeQ = ev.target.value; fillMergeList(); }
   if (ev.target.id === "w-q") { hideDup(); A.q = ev.target.value; renderStoreList(); }
@@ -981,6 +999,7 @@ document.addEventListener("keydown", ev => {
     else if (ev.key === "Enter" && !ev.target.closest("button, input, select, a")) { amountNext(); ev.preventDefault(); }
   }
   if (ev.key === "Escape" && !$("#layer").hidden) closeScreen();
+  if (ev.key === "Enter" && ev.target.id === "p-venmo") { ev.preventDefault(); saveVenmo(); }
   if (ev.key === "Enter" && ev.target.id === "sd-name") { ev.preventDefault(); renameStore(); }
   if (ev.key === "Enter" && ev.target.id === "w-q") { ev.preventDefault();
     const q = cleanQ(); if (!q) return;
