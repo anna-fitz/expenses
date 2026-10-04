@@ -1,7 +1,7 @@
 import { collection, doc, getDocs, increment, query, setDoc, where, writeBatch, type WriteBatch } from "firebase/firestore";
 import { toast } from "sonner";
 import { C } from "@/domain/copy.js";
-import { sameMonth, summaryOf, type Change } from "@/domain/expenses";
+import { editChanges, sameMonth, summaryOf, type Change } from "@/domain/expenses";
 import { canonicalSlug, slug } from "@/domain/stores.js";
 import { db } from "./firebase";
 import type { Expense, Merchant, Person } from "./types";
@@ -53,4 +53,21 @@ export async function billMonthDuplicate(billId: string, date: string, local: Ex
   try { list = (await getDocs(query(collection(db, "expenses"), where("billId", "==", billId)))).docs.map((d) => ({ id: d.id, ...d.data() }) as Expense); }
   catch { list = local.filter((x) => x.billId === billId); }
   return sameMonth(list, date);
+}
+
+// Logs only the fields that changed, compared against the store's current name. Returns false (and writes nothing) when nothing did.
+export function editExpense(orig: Expense, next: ExpenseFields, by: Person, merchants: Record<string, Merchant>): boolean {
+  const changes = editChanges(orig, next, merchants);
+  if (!changes.length) return false;
+  const b = writeBatch(db);
+  b.update(doc(db, "expenses", orig.id), { ...next, updatedAt: Date.now(), updatedBy: by });
+  logEntry(b, by, { action: "edit", expenseId: orig.id, summary: summaryOf(orig), changes });
+  b.commit().catch(writeFailed);
+  return true;
+}
+export function deleteExpense(orig: Expense, by: Person) {
+  const b = writeBatch(db);
+  b.delete(doc(db, "expenses", orig.id));
+  logEntry(b, by, { action: "delete", expenseId: orig.id, summary: summaryOf(orig) });
+  b.commit().catch(writeFailed);
 }

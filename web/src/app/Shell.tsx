@@ -7,6 +7,7 @@ import { C } from "@/domain/copy.js";
 import { PERSON_COLORS, inkOn, resolveColors } from "@/domain/people";
 import { cn } from "@/lib/utils";
 import { AddSheet } from "@/features/add/AddSheet";
+import { EditSheet } from "@/features/expenses/EditSheet";
 import { HomeScreen } from "@/features/home/HomeScreen";
 import { Onboarding } from "./Onboarding";
 import { PlaceholderScreen } from "./PlaceholderScreen";
@@ -65,6 +66,7 @@ export function Shell() {
       )}
       <TabBar tab={route.tab} />
       {route.sub === "add" && <AddSheet />}
+      {route.sub === "edit" && route.id && <EditSheet key={route.id} id={route.id} />}
     </div>
   );
 }
