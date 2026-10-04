@@ -1,7 +1,7 @@
-import { collection, doc, increment, setDoc, writeBatch, type WriteBatch } from "firebase/firestore";
+import { collection, doc, getDocs, increment, query, setDoc, where, writeBatch, type WriteBatch } from "firebase/firestore";
 import { toast } from "sonner";
 import { C } from "@/domain/copy.js";
-import { summaryOf, type Change } from "@/domain/expenses";
+import { sameMonth, summaryOf, type Change } from "@/domain/expenses";
 import { canonicalSlug, slug } from "@/domain/stores.js";
 import { db } from "./firebase";
 import type { Expense, Merchant, Person } from "./types";
@@ -45,4 +45,12 @@ export function learnStore(merchants: Record<string, Merchant>, name: string, ca
     if (merchants[id]?.mergedInto && (!end || end.hidden)) patch.mergedInto = null;
   }
   setDoc(doc(db, "merchants", id), patch, { merge: true }).catch(() => {});
+}
+
+// Includes settled bills: reads by billId (a single-field index) and filters the month here. Offline, it checks what's on the phone.
+export async function billMonthDuplicate(billId: string, date: string, local: Expense[]): Promise<Expense | null> {
+  let list: Expense[];
+  try { list = (await getDocs(query(collection(db, "expenses"), where("billId", "==", billId)))).docs.map((d) => ({ id: d.id, ...d.data() }) as Expense); }
+  catch { list = local.filter((x) => x.billId === billId); }
+  return sameMonth(list, date);
 }
