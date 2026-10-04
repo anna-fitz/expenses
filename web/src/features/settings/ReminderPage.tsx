@@ -15,9 +15,9 @@ export function ReminderPage() {
   const showing = !!nudgeText(expenses, settlements, settings, people.a, people.b);
   return (
     <SettingsPage title={C.reminderTitle}>
-      <Choice name="r-days" legend={C.remindAfter} value={String(s.nudgeDays)} onChange={(v) => save({ nudgeDays: Number(v) })}
+      <Choice name="r-days" legend={C.remindAfter} columns={2} value={String(s.nudgeDays)} onChange={(v) => save({ nudgeDays: Number(v) })}
         options={DAYS.map((d) => ({ value: String(d), label: d ? daysOpt(d) : C.off }))} />
-      <Choice name="r-cents" legend={C.remindOver} value={String(s.nudgeCents)} onChange={(v) => save({ nudgeCents: Number(v) })}
+      <Choice name="r-cents" legend={C.remindOver} columns={2} value={String(s.nudgeCents)} onChange={(v) => save({ nudgeCents: Number(v) })}
         options={CENTS.map((c) => ({ value: String(c), label: c ? fmtWhole(c) : C.off }))} />
       <p className="text-caption text-muted-foreground">{C.reminderHelp}</p>
       <p id="r-preview" role="status" className="rounded-xl border bg-card p-4 text-body">{C[showing ? "reminderOn" : "reminderOff"]}</p>

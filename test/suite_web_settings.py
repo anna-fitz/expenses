@@ -42,3 +42,12 @@ def run(b):
     fs_write(pg, 'config/settings', {'nudgeDays': 0})
     check('reminder: both off reads Off', pg.inner_text('[data-act=reminder] .text-caption') == 'Off')
     c.close()
+    # Every choice label reads in full on a small phone (a cut-off "$5…" hides which one is picked).
+    cut = "[...document.querySelectorAll('fieldset label span')].filter(s => s.scrollWidth > s.clientWidth + 1).map(s => s.textContent)"
+    for vp in ((390, 844), (320, 568)):
+        c = new_ctx(b, vp=vp); pg = open_app(c); login(pg)
+        tab(pg, 'settings'); pg.click('[data-act=reminder]'); pg.wait_for_timeout(150); r = pg.evaluate(cut)
+        pg.click('[data-act=back-settings]'); pg.wait_for_timeout(150); pg.click('[data-act=profile]'); pg.wait_for_timeout(150); p = pg.evaluate(cut)
+        check(f'settings: no cut-off choice labels at {vp[0]}px', not r and not p)
+        if r or p: print(f'--- cut off at {vp[0]}px ---', r, p)
+        c.close()
