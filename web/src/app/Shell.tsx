@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { AddSheet } from "@/features/add/AddSheet";
 import { EditSheet } from "@/features/expenses/EditSheet";
 import { HistoryScreen } from "@/features/history/HistoryScreen";
+import { SettlementSheet } from "@/features/history/SettlementSheet";
 import { HomeScreen } from "@/features/home/HomeScreen";
 import { Onboarding } from "./Onboarding";
 import { PlaceholderScreen } from "./PlaceholderScreen";
@@ -68,6 +69,7 @@ export function Shell() {
       <TabBar tab={route.tab} />
       {route.sub === "add" && <AddSheet />}
       {route.sub === "edit" && route.id && <EditSheet key={route.id} id={route.id} />}
+      {route.tab === "history" && route.sub === "settle" && route.id && <SettlementSheet key={route.id} id={route.id} />}
     </div>
   );
 }

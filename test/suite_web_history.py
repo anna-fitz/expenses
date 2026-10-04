@@ -44,4 +44,24 @@ def run(b):
           == ['Alex paid Sam $377.44', 'Closed even'])
     check('history: settle-up details', pg.evaluate("[...document.querySelectorAll('#settle-list .s')].map(e => e.textContent)")
           == ['Sep 30, 2026, 2 expenses, via Venmo', 'Aug 31, 2026, 1 expense'])
+    fs_batch(pg, [
+        ('expenses/d1', {'amountCents': 4512, 'payer': 'p1', 'merchant': 'Costco', 'category': 'Groceries', 'date': '2026-09-29', 'split': 'half',
+                         'settled': True, 'settlementId': 's1', 'createdBy': 'p1', 'createdAt': 5}),
+        ('expenses/d2', {'amountCents': 40000, 'payer': 'p2', 'merchant': 'Target', 'category': 'Gifts & occasions', 'date': '2026-09-30', 'split': 'full',
+                         'settled': True, 'settlementId': 's1', 'createdBy': 'p2', 'createdAt': 6})])
+    pg.click('[data-act=detail][data-id=s1]'); pg.wait_for_timeout(250)
+    check('detail: titled by its date, focus on the title', pg.inner_text('#layer-title') == 'Settled Sep 30, 2026'
+          and pg.evaluate('document.activeElement.id') == 'layer-title' and pg.evaluate('location.hash') == '#/history/settle/s1')
+    math = pg.evaluate("[...document.querySelectorAll('.math .r')].map(r => r.innerText.replace(/\\s+/g, ' ').trim())")
+    check('detail: the math', math == ['Sam paid, split 50/50 $0.00', 'Alex paid, split 50/50 $45.12', 'Half the difference $22.56 to Alex',
+                                       'Owed in full to Sam $400.00', 'Alex pays Sam $377.44'])
+    check('detail: its expenses, newest first, read-only', pg.evaluate("[...document.querySelectorAll('#d-list .t')].map(e => e.textContent)") == ['Target', 'Costco']
+          and pg.locator('#d-list button').count() == 0)
+    pg.click('[data-act=close]'); pg.wait_for_timeout(250)
+    check('detail: Back returns to the list and the row', not sheet_open(pg) and pg.evaluate('location.hash') == '#/history'
+          and pg.evaluate('document.activeElement.dataset.id') == 's1')
+    pg.click('[data-act=detail][data-id=s0]'); pg.wait_for_timeout(250)
+    check('detail: an even period', pg.evaluate("[...document.querySelectorAll('.math .r')].at(-1).innerText.replace(/\\s+/g, ' ').trim()") == 'You’re even $0.00'
+          and 'No expenses found.' in pg.inner_text('#d-list'))
+    close_sheet(pg)
     c.close()

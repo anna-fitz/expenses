@@ -71,3 +71,8 @@ export function deleteExpense(orig: Expense, by: Person) {
   logEntry(b, by, { action: "delete", expenseId: orig.id, summary: summaryOf(orig) });
   b.commit().catch(writeFailed);
 }
+
+export async function settledExpenses(settlementId: string): Promise<Expense[]> {
+  const s = await getDocs(query(collection(db, "expenses"), where("settlementId", "==", settlementId)));
+  return s.docs.map((d) => ({ id: d.id, ...d.data() }) as Expense);
+}
