@@ -60,3 +60,11 @@ def run(b):
         'Bre changed Electricity: usual amount $645.55 → $700.00, usually paid by Kyle → Bre',
         'Bre retired the bill Gardener', 'Bre brought back the bill Gardener'])
     c.close()
+    # Final review I-2: a bill save doesn't bring back a removed store of the same name
+    c = new_ctx(b); pg = open_app(c); login(pg)
+    open_stores(pg); pg.click('[data-act=store-open][data-id=electricity]'); pg.click('#sd-remove'); pg.click('#sd-remove'); pg.wait_for_timeout(100)
+    pg.keyboard.press('Escape')
+    start_add(pg); pg.click('[data-act=bill][data-id=electricity]'); next_step(pg); pg.wait_for_timeout(200)
+    check('bills: bill save keeps a removed store removed', st(pg)['merchants/electricity'].get('hidden') is True
+          and len([e for e in expenses(pg) if e.get('billId') == 'electricity']) == 1)
+    c.close()

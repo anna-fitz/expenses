@@ -76,3 +76,18 @@ def run(b):
         'Bre changed Costco’s usual category: Groceries → Home & household', 'Bre removed the store Love and affection',
         'Bre brought back the store Love and affection'])
     c.close()
+    # Final review I-1: renaming onto an alias of another store offers that store, never un-merges
+    c = new_ctx(b); pg = open_app(c); login(pg)
+    fs_write(pg, 'merchants/tj', {'name': 'TJ', 'hidden': True, 'mergedInto': 'trader-joes'})
+    open_stores(pg); pg.click('[data-act=store-open][data-id=ralphs]')
+    pg.fill('#sd-name', 'TJ'); pg.click('[data-act=store-rename]'); pg.wait_for_timeout(100)
+    check('stores: rename onto an alias offers its store', pg.is_visible('#sd-conflict') and 'Trader Joe’s' in pg.inner_text('#sd-conflict') or "Trader Joe's" in pg.inner_text('#sd-conflict'))
+    check('stores: alias left alone', st(pg)['merchants/tj'].get('mergedInto') == 'trader-joes' and st(pg)['merchants/tj'].get('hidden') is True)
+    # Final review I-4: re-adding a former alias of a removed store makes it visible
+    pg.keyboard.press('Escape')
+    fs_write(pg, 'merchants/love-affection', {'name': 'Love & Affection', 'category': 'Other', 'hidden': True})
+    fs_write(pg, 'merchants/love-and-affection', {'name': 'Love and affection', 'category': 'Other', 'hidden': True, 'mergedInto': 'love-affection'})
+    start_add(pg); keys(pg, '2'); next_step(pg); save_new_store(pg, 'Love and affection', 'Other')
+    m = st(pg)['merchants/love-and-affection']
+    check('stores: re-added alias of a removed store is visible', m.get('hidden') is False and m.get('mergedInto') is None)
+    c.close()

@@ -571,7 +571,7 @@ function payerFieldset(name, value, legend = "Paid by") {
 }
 function nextLabel() { return A.bill ? `Save ${A.bill.name}, ${fmt(toCents(A.buf || "") || 0)}` : "Next: choose store"; }
 function renderAmount() {
-  A.dupOk = false;
+  A.dupOk = false; A.checkSeq = (A.checkSeq || 0) + 1;
   const bills = S.bills.filter(b => b.active !== false).sort((a, b) => (a.order || 0) - (b.order || 0));
   const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "back"];
   openLayer(`<div class="frame">
@@ -611,8 +611,8 @@ function pressKey(k) {
   A.buf = b;
   $("#amt").innerHTML = amountDisplay();
   $("#amt-err").hidden = true;
-  hideDup();
-  if (A.bill) $("[data-act=next]").textContent = nextLabel();
+  hideDup(); A.checkSeq = (A.checkSeq || 0) + 1;
+  if (A.bill) { const n = $("[data-act=next]"); n.textContent = nextLabel(); n.removeAttribute("aria-disabled"); }
   announceAmount();
 }
 async function amountNext() {
@@ -622,8 +622,12 @@ async function amountNext() {
   if (A.bill) {
     const bill = A.bill;
     if (!A.dupOk) {
+      const seq = A.checkSeq = (A.checkSeq || 0) + 1, btn = $("[data-act=next]");
+      if (btn) { btn.textContent = C.checking; btn.setAttribute("aria-disabled", "true"); }
       const d = await billDuplicate(bill.id, A.date);
-      if (A.bill !== bill || A.step !== "amount" || $("#layer").hidden) return;   // the user moved on while we checked
+      // The user moved on while we checked: a newer check, another bill or amount, or the screen closed.
+      if (seq !== A.checkSeq || A.bill !== bill || A.step !== "amount" || $("#layer").hidden || toCents(A.buf || "") !== c) return;
+      if (btn) { btn.textContent = nextLabel(); btn.removeAttribute("aria-disabled"); }
       if (d) return showDup(d, "bill", bill.name);
     }
     saveNew(bill.name, bill.category || "Utilities", { billId: bill.id, covers: new Date().toLocaleDateString("en-US", { month: "long" }) });
@@ -710,7 +714,7 @@ function saveWhere() {
     const m = S.merchants[A.sel]; if (!m) return; name = m.name; category = m.category;
   }
   if (!A.dupOk) { const d = storeDuplicate(name, A.cents, A.date); if (d) return showDup(d, "store", canonicalName(S.merchants, name)); }
-  saveNew(name, category);
+  saveNew(name, category, A.sel === NEW ? { unhide: true } : {});
 }
 function readOpts() {
   const d = $("#o-date"); if (!d) return;
@@ -740,7 +744,11 @@ function showDup(e, kind, name) {
     <div class="btnrow"><button class="btn" data-act="dup-cancel">Don’t add</button><button class="btn primary" data-act="dup-ok">Add anyway</button></div></div></div>`);
   $("#dup-msg").focus();
 }
-function hideDup() { const d = $("#dup"); if (d) d.remove(); A.dupOk = false; }
+function hideDup() {
+  const d = $("#dup"); A.dupOk = false; if (!d) return;
+  const had = d.contains(document.activeElement); d.remove();
+  if (had) { const t = $("#w-save") || $("[data-act=next]"); if (t) t.focus(); }
+}
 
 /* ---------------- Saving ---------------- */
 function saveNew(name, category, extra = {}) {
@@ -757,7 +765,7 @@ function saveNew(name, category, extra = {}) {
   batch.set(ref, data);
   logEntry(batch, { action: "add", expenseId: ref.id, summary: summaryOf(data) }, `add-${ref.id}`);
   batch.commit().catch(writeFailed);
-  learnStore(name, data.category);
+  learnStore(name, data.category, extra.unhide);
   const bill = extra.billId && S.bills.find(b => b.id === extra.billId);
   closeScreen();
   const over = bill && bill.usualCents && A.cents > bill.usualCents * 1.2 ? fmt(bill.usualCents) : null;
@@ -766,8 +774,14 @@ function saveNew(name, category, extra = {}) {
     { label: "Edit", run: () => openEdit(Object.assign({ id: ref.id }, data)) }
   ]);
 }
-function learnStore(name, category) {
-  setDoc(doc(db, "merchants", slug(name)), { name, category, count: increment(1), lastUsed: Date.now(), hidden: false }, { merge: true }).catch(() => {});
+function learnStore(name, category, unhide) {
+  const id = slug(name), patch = { name, category, count: increment(1), lastUsed: Date.now() };
+  if (unhide) {   // typed as a new store: bring a removed name back, and detach it from a removed store it pointed to
+    patch.hidden = false;
+    const end = S.merchants[canonicalSlug(S.merchants, id)];
+    if (S.merchants[id] && S.merchants[id].mergedInto && (!end || end.hidden)) patch.mergedInto = null;
+  }
+  setDoc(doc(db, "merchants", id), patch, { merge: true }).catch(() => {});
 }
 
 /* ---------------- Edit (full form, the rare path) ---------------- */

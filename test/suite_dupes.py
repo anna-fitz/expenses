@@ -49,3 +49,20 @@ def run(b):
     pg.evaluate("window.__slowGetDocs = 0")
     check('dupes: bill check ignores a changed bill', not pg.is_visible('#dup') and pg.inner_text('#layer-title') == 'Add expense')
     c.close()
+    # Final review I-3: a corrected amount during a slow bill check is never saved at the old amount
+    c = new_ctx(b); pg = open_app(c); login(pg)
+    start_add(pg); pg.click('[data-act=bill][data-id=water]'); next_step(pg); pg.wait_for_timeout(150)
+    start_add(pg); pg.click('[data-act=bill][data-id=water]')
+    pg.evaluate("window.__slowGetDocs = 300"); next_step(pg)
+    check('dupes: Save shows it is checking', pg.inner_text('[data-act=next]') == 'Checking…' and pg.get_attribute('[data-act=next]', 'aria-disabled') == 'true')
+    pg.click('[data-act=key][data-k=back]'); pg.click('[data-act=key][data-k=back]'); keys(pg, '5'); pg.wait_for_timeout(500)
+    pg.evaluate("window.__slowGetDocs = 0")
+    waters = [e['amountCents'] for e in expenses(pg) if e.get('billId') == 'water']
+    check('dupes: stale check discarded after the amount changed', waters == [28000] and not pg.is_visible('#dup')
+          and pg.inner_text('[data-act=next]') == 'Save Water, $280.50')
+    # Final review M-4: typing while the warning has focus keeps focus on the screen
+    next_step(pg); pg.wait_for_timeout(150)
+    check('dupes: warning shown for the corrected amount', pg.is_visible('#dup'))
+    pg.keyboard.press('1'); pg.wait_for_timeout(50)
+    check('dupes: typing hides the warning without losing focus', not pg.is_visible('#dup') and pg.evaluate('document.activeElement.dataset.act') == 'next')
+    c.close()

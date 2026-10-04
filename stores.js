@@ -48,5 +48,7 @@ export function planRename(merchants, id, newName) {
   if (newId === id) return { kind: "same", name };
   const other = merchants[newId];
   if (other && other.name && !other.hidden) return { kind: "conflict", targetId: newId, targetName: other.name };
+  const end = canonicalSlug(merchants, newId), t = merchants[end];
+  if (end !== newId && end !== id && t && t.name && !t.hidden) return { kind: "conflict", targetId: end, targetName: t.name };
   return { kind: "move", newId, name };
 }
