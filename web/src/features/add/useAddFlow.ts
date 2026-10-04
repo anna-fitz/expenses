@@ -9,14 +9,15 @@ import { addExpense, billMonthDuplicate, learnStore, undoAdd } from "@/data/writ
 import { amountText, centsToBuf, pressKey, toCents } from "@/domain/amount";
 import type { StoreDefault } from "@/domain/categories";
 import { C, dupLine, fmt, pickCategoryFor, savedLine, shortDate, todayISO } from "@/domain/copy.js";
+import { billNamed, withoutBills } from "@/domain/bills";
 import { NEW_STORE, storeDuplicate } from "@/domain/expenses";
 import { canonicalName, pickerStores } from "@/domain/stores.js";
 
 export type Step = "amount" | "where" | "review";
-export type DetailsField = "payer" | "split" | "date" | "category" | "covers" | null;
+export type DetailsField = "note" | "payer" | "split" | "date" | "category" | "covers" | null;
 export type AddState = {
   step: Step; seenReview: boolean; buf: string; payer: Person; bill: Bill | null;
-  q: string; sel: string | null; newCat: string; note: string; noteOpen: boolean;
+  q: string; sel: string | null; newCat: string; note: string;
   date: string; split: Expense["split"]; category: string; covers: string;
   billsOpen: boolean; details: { field: DetailsField } | null;
   err: string; errField: "amount" | "store" | "cat" | null;
@@ -34,7 +35,7 @@ type Hit = { d: Partial<Expense>; kind: "store" | "bill"; name: string };
 export function useAddFlow() {
   const { people, bills, merchants, expenses } = useData();
   const [a, setA] = useState<AddState>(() => ({ step: "amount", seenReview: false, buf: "", payer: people.me, bill: null, q: "", sel: null,
-    newCat: "", note: "", noteOpen: false, date: todayISO(), split: "half", category: "", covers: "", billsOpen: false, details: null, err: "", errField: null,
+    newCat: "", note: "", date: todayISO(), split: "half", category: "", covers: "", billsOpen: false, details: null, err: "", errField: null,
     dup: null, dupOk: false, checking: false }));
   const aRef = useRef(a); aRef.current = a;
   const saving = useRef(false), seq = useRef(0), closed = useRef(false);
@@ -51,10 +52,12 @@ export function useAddFlow() {
 
   // The store step's list, and the selection only while it's still on screen.
   const where = useMemo(() => {
-    const q = a.q.trim().replace(/\s+/g, " "), list = pickerStores(merchants, q), exact = list.find((m) => m.exact) || null;
-    const ok = a.sel === NEW_STORE ? !!q && !exact : list.some((m) => m.id === a.sel);
-    return { q, list, exact, sel: ok ? a.sel : null };
-  }, [a.q, a.sel, merchants]);
+    // Bills are their own flow: never in the store list, and a typed bill name can't become a store.
+    const q = a.q.trim().replace(/\s+/g, " "), list = withoutBills(pickerStores(merchants, q), bills), exact = list.find((m) => m.exact) || null;
+    const bill = billNamed(bills, q);
+    const ok = a.sel === NEW_STORE ? !!q && !exact && !bill : list.some((m) => m.id === a.sel);
+    return { q, list, exact, bill, sel: ok ? a.sel : null };
+  }, [a.q, a.sel, merchants, bills]);
   const whereRef = useRef(where); whereRef.current = where;
   useEffect(() => { if (a.sel && !where.sel) setA((x) => ({ ...x, sel: null })); }, [a.sel, where.sel]);   // never keep a hidden selection
 
@@ -158,7 +161,7 @@ export function useAddFlow() {
   // Enter in the search box: first selects (the exact match, or "add new"), then goes Next.
   function enterInSearch() {
     const w = whereRef.current, cur = aRef.current;
-    if (!w.q) return;
+    if (!w.q || (w.bill && !w.exact)) return;
     const want = w.exact ? w.exact.id : NEW_STORE;
     if (w.sel === want && (want !== NEW_STORE || cur.newCat)) return next();
     pickStore(want);
@@ -187,6 +190,6 @@ export function useAddFlow() {
 
   return { a, set, cents, where, target, storeDefault, people, bills, merchants, key, next, back, jump, log, pickBill, clearBill, pickStore,
     clearStore, enterInSearch, addAnyway, dontAdd, close,
-    openNote: () => { set({ noteOpen: true }); focusSoon("#w-note"); },
+    toBills: () => set({ step: "amount", billsOpen: true, err: "", errField: null }),
     openDetails: (field: DetailsField) => set({ details: { field } }), closeDetails: () => set({ details: null }) };
 }

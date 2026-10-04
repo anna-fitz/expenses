@@ -1,10 +1,10 @@
-import { Check, Plus, SlidersHorizontal } from "lucide-react";
+import { Check, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { SORTED_CATEGORIES } from "@/domain/categories";
-import { C, addNewStore, categoryFor, dateLabel, optsSummary, storeSelected, storeSub } from "@/domain/copy.js";
+import { C, addNewStore, categoryFor, dateLabel, isABill, optsSummary, storeSelected, storeSub } from "@/domain/copy.js";
 import { NEW_STORE } from "@/domain/expenses";
 import { cn } from "@/lib/utils";
 import type { AddFlow } from "./useAddFlow";
@@ -12,7 +12,7 @@ import type { AddFlow } from "./useAddFlow";
 export function WhereStep({ f }: { f: AddFlow }) {
   const { a, where, target } = f;
   const tiles = [
-    ...(where.q && !where.exact ? [{ id: NEW_STORE, label: addNewStore(where.q), sub: "" }] : []),
+    ...(where.q && !where.exact && !where.bill ? [{ id: NEW_STORE, label: addNewStore(where.q), sub: "" }] : []),
     ...where.list.map((m) => ({ id: m.id, label: m.name, sub: storeSub(m.category, m.alsoCalled) })),
   ];
   return (
@@ -30,23 +30,15 @@ export function WhereStep({ f }: { f: AddFlow }) {
           </p>
         )}
       </div>
-      {/* Note and Details are one tap away above the tiles, so neither pushes the store list down until it's wanted. */}
-      <div className="flex flex-col">
-        <div className="flex flex-wrap items-center gap-x-5">
-          {!(a.noteOpen || a.note) && (
-            <Button type="button" variant="link" className="h-11 px-0 text-body" data-act="add-note" onClick={f.openNote}>
-              <Plus className="size-4" aria-hidden="true" />{C.addNote}</Button>
-          )}
-          <Button type="button" variant="link" className="h-11 px-0 text-body" data-act="details" aria-describedby="w-sum" onClick={() => f.openDetails(null)}>
-            <SlidersHorizontal className="size-4" aria-hidden="true" />{C.details}</Button>
-        </div>
+      {/* Details (note, paid by, split, date, category, covers) is one tap away above the tiles, so it never pushes the store list down. */}
+      <div className="flex flex-col items-start">
+        <Button type="button" variant="link" className="h-11 px-0 text-body" data-act="details" aria-describedby="w-sum" onClick={() => f.openDetails(null)}>
+          <SlidersHorizontal className="size-4" aria-hidden="true" />{C.details}</Button>
         <p id="w-sum" className="text-caption text-muted-foreground">{optsSummary(dateLabel(a.date), a.split, a.category)}</p>
       </div>
-      {(a.noteOpen || a.note) && (
-        <div className="grid gap-2">
-          <Label htmlFor="w-note">{C.note}</Label>
-          <Input id="w-note" className="h-11 text-body" placeholder={C.notePh} maxLength={140} value={a.note} onChange={(e) => f.set({ note: e.target.value })} />
-        </div>
+      {where.bill && !where.exact && (
+        <p id="w-bill" className="flex flex-wrap items-center gap-x-1 text-body">{isABill(where.bill.name)}
+          <Button type="button" variant="link" className="h-11 px-0 text-body" data-act="to-bills" onClick={f.toBills}>{C.logWithBill}</Button></p>
       )}
       {a.err && <p id="w-err" role="alert" className="text-caption text-destructive">{a.err}</p>}
       <div id="w-list" className="flex flex-col gap-4">
@@ -69,7 +61,7 @@ export function WhereStep({ f }: { f: AddFlow }) {
               ))}
             </div>
           </fieldset>
-        ) : <p className="text-muted-foreground">{C.typeToAdd}</p>}
+        ) : !where.bill && <p className="text-muted-foreground">{C.typeToAdd}</p>}
         {where.sel === NEW_STORE && (
           <div className="grid gap-2">
             <Label htmlFor="w-cat">{categoryFor(where.q)}</Label>

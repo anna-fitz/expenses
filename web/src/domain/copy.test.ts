@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { C, activityLine, addNewStore, balanceLine, emptyBody, greeting, nudgeLine, optsSummary, privacySections, savedLine, settleLine, settleSub, settledTitle, SIGNIN_NOTE, splitHelp, storeSub, atLine, categoryDefault, dateLabel, splitLine, storeSelected, todayISO } from "./copy.js";
+import { C, activityLine, addNewStore, balanceLine, emptyBody, greeting, nudgeLine, optsSummary, privacySections, savedLine, settleLine, settleSub, settledTitle, SIGNIN_NOTE, splitHelp, storeSub, atLine, categoryDefault, dateLabel, splitLine, storeSelected, todayISO, isABill } from "./copy.js";
 
 const N = { p1: "Alex", p2: "Sam" };
 describe("copy", () => {
@@ -52,7 +52,12 @@ describe("copy", () => {
     expect(splitLine("Sam", "half", 4513)).toBe("50/50, Sam owes $22.57");
     expect(splitLine("Sam", "full", 4513)).toBe("Owed in full");
     expect([dateLabel(todayISO()), dateLabel("2020-09-01")]).toEqual(["Today", "Sep 1"]);
-    expect([C.next, C.log, C.reviewTitle, C.pickBill, C.clear, C.done, C.storeDefault, C.addNote])
-      .toEqual(["Next", "Log expense", "Look good?", "Pick a bill", "Clear", "Done", "Store’s default", "Add note"]);
+    expect([C.next, C.log, C.reviewTitle, C.pickBill, C.clear, C.done, C.storeDefault])
+      .toEqual(["Next", "Log expense", "Look good?", "Pick a bill", "Clear", "Done", "Store’s default"]);
+  });
+  it("explains bills, and points a typed bill name to them", () => {
+    expect(C.billsHelp).toBe("Bills are your recurring shared costs, kept separate from everyday expenses. Each one fills in its usual amount. Change it on the keypad if this month’s is different.");
+    expect(isABill("Water")).toBe("Water is a bill.");
+    expect([C.logWithBill, C.addANote]).toEqual(["Log it with Pick a bill", "Add a note"]);
   });
 });

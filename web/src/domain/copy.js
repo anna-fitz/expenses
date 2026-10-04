@@ -125,6 +125,7 @@ export const storeSub = (category, alsoCalled) => [category, alsoCalled ? `also 
 
 /* ---------- Add flow: store, review, and category list ---------- */
 export const storeSelected = name => `${name} selected`;
+export const isABill = name => `${name} is a bill.`;
 export const categoryDefault = (category, store) => `${category} (default for ${store})`;
 export const atLine = (name, isBill) => `${isBill ? "for" : "at"} ${name}`;
 export const splitLine = (other, split, cents) => split === "full" ? "Owed in full" : `50/50, ${other} owes ${fmt(Math.round(cents / 2))}`;
@@ -196,7 +197,8 @@ export const C = {
   appName: "Expenses",
   add: "Add expense",
   next: "Next", log: "Log expense", reviewTitle: "Look good?", pickBill: "Pick a bill", clear: "Clear", done: "Done", storeDefault: "Store’s default",
-  addNote: "Add note",
+  billsHelp: "Bills are your recurring shared costs, kept separate from everyday expenses. Each one fills in its usual amount. Change it on the keypad if this month’s is different.",
+  logWithBill: "Log it with Pick a bill", addANote: "Add a note",
   amount: "Amount",
   bills: "Bills", change: "Change", cancel: "Cancel", back: "Back", enterAmount: "Enter an amount",
   deleteDigit: "Delete last digit", decimal: "Decimal point", paidBy: "Paid by", you: "You", youLower: "you", someone: "Someone",

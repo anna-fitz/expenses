@@ -7,7 +7,7 @@ export function BillsDrawer({ f }: { f: AddFlow }) {
   const bills = f.bills.filter((b) => b.active !== false).sort((x, y) => (x.order || 0) - (y.order || 0));
   const cancel = () => f.set({ billsOpen: false });
   return (
-    <BottomDrawer id="bills" title={C.bills} open={f.a.billsOpen} onClose={cancel} focusAfterClose="[data-act=clear-bill]"
+    <BottomDrawer id="bills" title={C.bills} description={C.billsHelp} open={f.a.billsOpen} onClose={cancel} focusAfterClose="[data-act=clear-bill]"
       footer={<Button variant="outline" size="lg" className="h-13 w-full text-body" data-act="bills-cancel" onClick={cancel}>{C.cancel}</Button>}>
       {bills.length ? (
         <ul className="divide-y overflow-hidden rounded-xl border bg-card">

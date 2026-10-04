@@ -3,14 +3,15 @@ import { C, atLine, dateLabel, fmt, splitLine } from "@/domain/copy.js";
 import { cn } from "@/lib/utils";
 import type { AddFlow } from "./useAddFlow";
 
-type Row = { key: string; label: string; value: string; sub?: string; go?: () => void };
+type Row = { key: string; label: string; value: string; empty?: boolean; go?: () => void };
 // "Look good?": every value, each row taking you to the one place it's edited.
 export function ReviewStep({ f }: { f: AddFlow }) {
   const { a, people, target } = f;
   if (!target) return null;
   const other = a.payer === people.a ? people.b : people.a, note = a.note.trim();
   const rows: Row[] = [
-    { key: "store", label: C.store, value: target.name, sub: note || undefined, go: target.isBill ? undefined : () => f.jump("where") },
+    { key: "store", label: C.store, value: target.name, go: target.isBill ? undefined : () => f.jump("where") },
+    { key: "note", label: C.note, value: note || C.addANote, empty: !note, go: () => f.openDetails("note") },
     { key: "amount", label: C.amount, value: fmt(f.cents), go: () => f.jump("amount") },
     { key: "payer", label: C.paidBy, value: a.payer === people.me ? C.you : people.names[a.payer], go: () => f.openDetails("payer") },
     { key: "split", label: C.split, value: splitLine(people.names[other], a.split, f.cents), go: () => f.openDetails("split") },
@@ -31,8 +32,7 @@ export function ReviewStep({ f }: { f: AddFlow }) {
             <>
               <span className="min-w-0 flex-1">
                 <span className="block text-caption text-muted-foreground">{r.label}</span>
-                <span className="v block truncate font-medium">{r.value}</span>
-                {r.sub && <span className="block truncate text-caption text-muted-foreground">{r.sub}</span>}
+                <span className={cn("v block truncate", r.empty ? "text-muted-foreground" : "font-medium")}>{r.value}</span>
               </span>
               {r.go && <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />}
             </>
@@ -40,7 +40,7 @@ export function ReviewStep({ f }: { f: AddFlow }) {
           return (
             <li key={r.key} data-row={r.key}>
               {r.go
-                ? <button type="button" data-act={`rv-${r.key}`} aria-label={`${r.label}, ${r.value}${r.sub ? `, ${r.sub}` : ""}`} onClick={r.go}
+                ? <button type="button" data-act={`rv-${r.key}`} aria-label={`${r.label}, ${r.value}`} onClick={r.go}
                     className={cn(cls, "outline-offset-[-2px] active:bg-muted")}>{body}</button>
                 : <div className={cls}>{body}</div>}
             </li>

@@ -12,7 +12,7 @@ import type { AddFlow, DetailsField } from "./useAddFlow";
 type Split = Expense["split"];
 // Opening from a review row starts on that row's field.
 const START: Record<Exclude<DetailsField, null>, string> = {
-  payer: "input[name=payer]:checked", split: "input[name=o-split]:checked", date: "#o-date", category: "#o-cat", covers: "#o-covers",
+  note: "#o-note", payer: "input[name=payer]:checked", split: "input[name=o-split]:checked", date: "#o-date", category: "#o-cat", covers: "#o-covers",
 };
 export function DetailsDrawer({ f }: { f: AddFlow }) {
   const { a, people, storeDefault } = f, other = a.payer === people.a ? people.b : people.a, field = a.details?.field;
@@ -20,6 +20,8 @@ export function DetailsDrawer({ f }: { f: AddFlow }) {
     <BottomDrawer id="details" title={C.details} open={!!a.details} onClose={f.closeDetails} initialFocus={field ? START[field] : undefined}
       footer={<Button size="lg" className="h-13 w-full text-body" data-act="details-done" onClick={f.closeDetails}>{C.done}</Button>}>
       <div className="flex flex-col gap-4">
+        <div className="grid gap-2"><Label htmlFor="o-note">{C.note}</Label>
+          <Input id="o-note" className="h-11 text-body" placeholder={C.notePh} maxLength={140} value={a.note} onChange={(e) => f.set({ note: e.target.value })} /></div>
         <Choice name="payer" legend={C.paidBy} value={a.payer} onChange={(v) => f.set({ payer: v })}
           options={[{ value: people.me, label: C.you }, { value: people.them, label: people.names[people.them] }]} />
         <div className="grid gap-2">

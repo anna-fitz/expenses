@@ -15,7 +15,8 @@ def run(b):
           and pg.evaluate("document.querySelector('[aria-labelledby=amt-label]') !== null"))
     check('add1: no paid-by and no bill chips on step 1', pg.locator('input[name=payer]').count() == 0 and pg.locator('[data-act=bill]').count() == 0
           and pg.inner_text('[data-act=pick-bill]') == 'Pick a bill')
-    check('add1: Cancel and Next', pg.inner_text('[data-act=close]') == 'Cancel' and pg.inner_text('[data-act=next]') == 'Next')
+    check('add1: Cancel at the top, only Next at the bottom', pg.inner_text('#layer header [data-act=close]') == 'Cancel'
+          and pg.locator('#layer .dock [data-act=close]').count() == 0 and pg.inner_text('#layer .dock').strip() == 'Next')
     next_step(pg)
     check('add1: empty amount error, linked', pg.inner_text('#amt-err') == 'Enter an amount' and pg.inner_text('#layer-title') == 'Add expense'
           and 'amt-err' in pg.get_attribute('[aria-labelledby=amt-label]', 'aria-describedby'))
@@ -27,6 +28,9 @@ def run(b):
         "(() => { const s = getComputedStyle(document.querySelector('[data-act=key][data-k=\"1\"]')); return [s.fontSize, s.fontWeight]; })()") == ['28px', '400']
           and abs(pg.locator('#layer .keys').bounding_box()['width'] - 390) <= 1)
     pg.click('[data-act=pick-bill]'); pg.wait_for_selector('#bills'); pg.wait_for_timeout(100)
+    check('bills: the drawer explains bills', pg.inner_text('#bills-help') == 'Bills are your recurring shared costs, kept separate from everyday expenses. '
+          'Each one fills in its usual amount. Change it on the keypad if this month’s is different.'
+          and pg.get_attribute('#bills', 'aria-describedby') == 'bills-help')
     check('bills: a named drawer, focus inside', pg.get_attribute('#bills', 'role') == 'dialog' and pg.get_attribute('#bills', 'aria-labelledby') == 'bills-title'
           and pg.inner_text('#bills-title') == 'Bills' and focused_in(pg, 'bills'))
     check('bills: in order, with usual amounts', pg.evaluate("[...document.querySelectorAll('#bills [data-act=bill]')].map(e => e.dataset.id).join()")
@@ -63,8 +67,10 @@ def run(b):
     check('add2: title and context line', pg.inner_text('#layer-title') == 'Where was it?' and pg.evaluate('document.activeElement.id') == 'layer-title'
           and ctx.startswith('$45.12') and 'Edit amount' in ctx and 'paid by' not in ctx.lower())
     names = store_names(pg)
-    check('add2: Store label, stores A–Z, Back and Next', pg.inner_text('label[for=w-q]') == 'Store' and len(names) == 23 and names == sorted(names, key=str.lower)
+    check('add2: Store label, stores A–Z without the bills, Back and Next', pg.inner_text('label[for=w-q]') == 'Store' and len(names) == 17
+          and names == sorted(names, key=str.lower) and not set(names) & {'Electricity', 'Internet', 'Gas bill', 'Water', 'Pool service', 'Gardener'}
           and pg.inner_text('[data-act=back]') == 'Back' and pg.inner_text('[data-act=next]') == 'Next')
+    check('add2: Cancel at the top', pg.inner_text('#layer header [data-act=close]') == 'Cancel')
     next_step(pg)
     check('add2: pick-a-store error', pg.inner_text('#w-err') == 'Pick a store first' and pg.evaluate('document.activeElement.name') == 'store'
           and pg.inner_text('#layer-title') == 'Where was it?')
@@ -78,6 +84,12 @@ def run(b):
     check('add2: filter, and a hidden selection is cleared', store_values(pg) == ['__new__', 'target'] and pg.locator('#w-selected').count() == 0)
     pg.fill('#w-q', ''); pg.wait_for_timeout(50)
     check('add2: and stays cleared', checked(pg, 'store') is None)
+    pg.fill('#w-q', ' water '); pg.wait_for_timeout(80)
+    check('add2: typing a bill name points to Pick a bill, never adds it as a store', store_values(pg) == []
+          and pg.inner_text('#w-bill').startswith('Water is a bill.') and pg.inner_text('[data-act=to-bills]') == 'Log it with Pick a bill')
+    pg.click('[data-act=to-bills]'); pg.wait_for_selector('#bills'); pg.wait_for_timeout(150)
+    check('add2: which goes to step 1 with the Bills drawer open', pg.inner_text('#layer-title') == 'Add expense' and pg.locator('#bills').count() == 1)
+    pg.keyboard.press('Escape'); pg.wait_for_timeout(250); next_step(pg); pg.fill('#w-q', ''); pg.wait_for_timeout(50)
     pg.check('input[name=store][value=ralphs]'); pg.focus('input[name=store][value=ralphs]')
     fs_write(pg, 'merchants/zzz-cafe', {'name': 'Zzz Cafe', 'category': 'Coffee', 'count': 1})
     check('add2: a live update keeps selection and focus', checked(pg, 'store') == 'ralphs' and pg.evaluate('document.activeElement.value') == 'ralphs'
@@ -87,32 +99,32 @@ def run(b):
     next_step(pg)
     check('add2: going back keeps the store', checked(pg, 'store') == 'ralphs')
     above = lambda a_, b_: pg.locator(a_).bounding_box()['y'] < pg.locator(b_).bounding_box()['y']
-    check('add2: "Add note" sits above the tiles, the field hidden until asked', pg.inner_text('[data-act=add-note]') == 'Add note'
-          and pg.locator('#w-note').count() == 0 and above('[data-act=add-note]', '#w-list'))
-    same_row = lambda a_, b_: abs(pg.locator(a_).bounding_box()['y'] - pg.locator(b_).bounding_box()['y']) <= 2
-    check('add2: Details sits beside Add note, above the tiles, with its summary', pg.inner_text('[data-act=details]') == 'Details'
-          and same_row('[data-act=details]', '[data-act=add-note]') and above('[data-act=details]', '#w-list')
-          and above('#w-sum', '#w-list') and pg.inner_text('#w-sum') == 'Today · split 50/50 · usual category')
-    pg.click('[data-act=add-note]'); pg.wait_for_timeout(80)
-    check('add2: Add note opens the field, focus in it', pg.inner_text('label[for=w-note]') == 'Note' and pg.evaluate('document.activeElement.id') == 'w-note'
-          and pg.get_attribute('#w-note', 'placeholder') == 'What was it? e.g., dog food' and pg.locator('[data-act=add-note]').count() == 0
-          and above('#w-note', '#w-list') and above('[data-act=details]', '#w-list'))
-    pg.fill('#w-note', 'Paper towels'); next_step(pg)
+    check('add2: no note on the store step; Details above the tiles, with its summary', pg.locator('[data-act=add-note], #w-note, #o-note').count() == 0
+          and pg.inner_text('[data-act=details]') == 'Details' and above('[data-act=details]', '#w-list') and above('#w-sum', '#w-list')
+          and pg.inner_text('#w-sum') == 'Today · split 50/50 · usual category')
+    open_details(pg)
+    check('details: the note comes first', pg.inner_text('label[for=o-note]') == 'Note' and pg.get_attribute('#o-note', 'placeholder') == 'What was it? e.g., dog food'
+          and above('#o-note', '#payer-set'))
+    pg.fill('#o-note', 'Paper towels'); details_done(pg); next_step(pg)
     check('review: title, hero amount, where', pg.inner_text('#layer-title') == 'Look good?' and pg.evaluate('document.activeElement.id') == 'layer-title'
           and pg.inner_text('#rv-amt') == '$45.12' and pg.inner_text('#rv-at') == 'at Ralphs'
           and pg.evaluate("getComputedStyle(document.getElementById('rv-amt')).fontSize") == '56px')
-    check('review: rows', [rv(pg, k) for k in ('store', 'amount', 'payer', 'split', 'date', 'category')]
-          == ['Ralphs', '$45.12', 'You', '50/50, Sam owes $22.56', 'Today', 'Groceries']
-          and 'Paper towels' in pg.inner_text('[data-row=store]') and pg.locator('[data-row=covers]').count() == 0)
+    check('review: rows, with the note right after the store', [rv(pg, k) for k in ('store', 'note', 'amount', 'payer', 'split', 'date', 'category')]
+          == ['Ralphs', 'Paper towels', '$45.12', 'You', '50/50, Sam owes $22.56', 'Today', 'Groceries']
+          and pg.evaluate("[...document.querySelectorAll('#review [data-row]')].map(r => r.dataset.row).slice(0, 2).join()") == 'store,note'
+          and pg.locator('[data-row=covers]').count() == 0)
     check('review: rows are named buttons', pg.get_attribute('[data-act=rv-payer]', 'aria-label') == 'Paid by, You')
-    pg.click('[data-act=rv-store]'); pg.wait_for_timeout(80)
-    check('add2: a written note stays open when you come back', pg.input_value('#w-note') == 'Paper towels')
-    next_step(pg)
+    check('review: Cancel at the top', pg.inner_text('#layer header [data-act=close]') == 'Cancel')
+    pg.click('[data-act=rv-note]'); pg.wait_for_selector('#details'); pg.wait_for_timeout(100)
+    check('details: the Note row starts in the note', pg.evaluate('document.activeElement.id') == 'o-note' and pg.input_value('#o-note') == 'Paper towels')
+    pg.fill('#o-note', 'Paper towels, 2 pack'); details_done(pg)
+    check('review: the edited note shows, focus back on its row', rv(pg, 'note') == 'Paper towels, 2 pack'
+          and pg.evaluate('document.activeElement.dataset.act') == 'rv-note')
     check('review: Back and Log expense', pg.inner_text('[data-act=back]') == 'Back' and pg.inner_text('[data-act=log]') == 'Log expense')
     log_it(pg)
     e = expenses(pg)
     check('review: logged', len(e) == 1 and e[0]['merchant'] == 'Ralphs' and e[0]['amountCents'] == 4512 and e[0]['payer'] == 'p1' and e[0]['split'] == 'half'
-          and e[0]['category'] == 'Groceries' and e[0]['note'] == 'Paper towels' and e[0]['createdBy'] == 'p1' and e[0]['settled'] is False and not sheet_open(pg))
+          and e[0]['category'] == 'Groceries' and e[0]['note'] == 'Paper towels, 2 pack' and e[0]['createdBy'] == 'p1' and e[0]['settled'] is False and not sheet_open(pg))
     eid = [k for k in st(pg) if k.startswith('expenses/')][0].split('/')[1]
     a = activity(pg)
     check('review: logged with a fixed activity id', len(a) == 1 and a[0]['id'] == f'add-{eid}' and a[0]['action'] == 'add' and a[0]['by'] == 'p1'
@@ -126,11 +138,14 @@ def run(b):
     check('sheet: and comes back after it closes', pg.is_visible('[data-toast=undo]'))
     toast_btn(pg, 'undo')
     check('review: Undo leaves no trace', len(expenses(pg)) == 0 and len(activity(pg)) == 0 and 'Removed.' in toast_text(pg))
+    start_add(pg); keys(pg, '1'); next_step(pg); pg.check('input[name=store][value=costco]'); next_step(pg)
+    pg.click('#layer header [data-act=close]'); pg.wait_for_timeout(250)
+    check('review: Cancel closes without logging', not sheet_open(pg) and len(expenses(pg)) == 0)
     # ---- Each review row goes to the right place and comes back ----
     start_add(pg); keys(pg, '20'); next_step(pg); pg.check('input[name=store][value=costco]'); next_step(pg)
     pg.click('[data-act=rv-amount]'); pg.wait_for_timeout(80)
-    check('review: Amount goes back to step 1, with only Next', pg.inner_text('#layer-title') == 'Add expense' and pg.inner_text('#amt') == '$20'
-          and pg.locator('[data-act=close]').count() == 0)
+    check('review: Amount goes back to step 1, still with Cancel at the top', pg.inner_text('#layer-title') == 'Add expense' and pg.inner_text('#amt') == '$20'
+          and pg.locator('#layer header [data-act=close]').count() == 1 and pg.locator('#layer .dock [data-act=close]').count() == 0)
     keys(pg, '5'); next_step(pg)
     check('review: Next comes straight back', pg.inner_text('#layer-title') == 'Look good?' and rv(pg, 'amount') == '$205.00')
     pg.click('[data-act=rv-store]'); pg.wait_for_timeout(80)
@@ -179,7 +194,8 @@ def run(b):
     check('add2: category required', pg.inner_text('#w-err') == 'Pick a category for Blue Bottle' and pg.get_attribute('#w-cat', 'aria-invalid') == 'true'
           and pg.evaluate('document.activeElement.id') == 'w-cat' and pg.inner_text('#layer-title') == 'Where was it?')
     pg.select_option('#w-cat', 'Coffee'); next_step(pg)
-    check('review: a new store and its category', rv(pg, 'store') == 'Blue Bottle' and rv(pg, 'category') == 'Coffee')
+    check('review: a new store and its category; no note yet', rv(pg, 'store') == 'Blue Bottle' and rv(pg, 'category') == 'Coffee'
+          and rv(pg, 'note') == 'Add a note' and pg.get_attribute('[data-act=rv-note]', 'aria-label') == 'Note, Add a note')
     log_it(pg)
     m = st(pg).get('merchants/blue-bottle', {})
     check('review: a new store is learned', m.get('category') == 'Coffee' and m.get('count') == 1 and any(x['merchant'] == 'Blue Bottle' for x in expenses(pg)))
@@ -196,12 +212,14 @@ def run(b):
     check('bills: Next goes straight to review', pg.inner_text('#layer-title') == 'Look good?' and pg.inner_text('#rv-at') == 'for Electricity'
           and rv(pg, 'store') == 'Electricity' and pg.locator('[data-act=rv-store]').count() == 0
           and rv(pg, 'payer') == 'Sam' and rv(pg, 'category') == 'Utilities' and rv(pg, 'covers') == month)
+    pg.click('[data-act=rv-note]'); pg.wait_for_selector('#details'); pg.fill('#o-note', 'Summer rate'); details_done(pg)
+    check('bills: a bill can have a note', rv(pg, 'note') == 'Summer rate')
     pg.click('[data-act=back]'); pg.wait_for_timeout(80)
     check('bills: Back goes to step 1', pg.inner_text('#layer-title') == 'Add expense' and 'For Electricity' in pg.inner_text('.billfor'))
     next_step(pg); pg.wait_for_timeout(150); log_it(pg)
     el = [x for x in expenses(pg) if x.get('billId') == 'electricity']
     check('bills: logged with its payer and month', el and el[0]['payer'] == 'p2' and el[0]['amountCents'] == 64555 and el[0]['merchant'] == 'Electricity'
-          and el[0]['covers'] == month and el[0]['category'] == 'Utilities' and not sheet_open(pg))
+          and el[0]['covers'] == month and el[0]['category'] == 'Utilities' and el[0]['note'] == 'Summer rate' and not sheet_open(pg))
     check('bills: toast', 'Logged ✅ $645.55 for Electricity' in toast_text(pg))
     start_add(pg); pick_bill(pg, 'water')
     for _ in range(4): pg.click('[data-act=key][data-k=back]')

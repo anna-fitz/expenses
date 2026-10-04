@@ -42,7 +42,7 @@ def run(b):
         open_details(pg); scan(pg, f'web {scheme} details drawer'); details_done(pg)
         pg.fill('#w-q', 'Blue Bottle'); pg.check('input[name=store][value=__new__]'); next_step(pg); pg.wait_for_timeout(50)
         scan(pg, f'web {scheme} add new-store error')
-        pg.select_option('#w-cat', 'Coffee'); pg.click('[data-act=add-note]'); pg.fill('#w-note', 'Beans'); next_step(pg); pg.wait_for_timeout(150); scan(pg, f'web {scheme} review')
+        pg.select_option('#w-cat', 'Coffee'); next_step(pg); pg.wait_for_timeout(150); scan(pg, f'web {scheme} review')
         log_it(pg); pg.wait_for_timeout(100); scan(pg, f'web {scheme} home with the saved toast')
         start_add(pg); keys(pg, '45.12'); next_step(pg); pg.fill('#w-q', 'blue'); pg.check('input[name=store][value=blue-bottle]'); next_step(pg); pg.wait_for_timeout(150)
         scan(pg, f'web {scheme} duplicate warning on review')

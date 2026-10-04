@@ -16,7 +16,6 @@ export function AddSheet() {
   const side = "h-13 flex-1 text-body", main = "h-13 min-w-0 flex-[2] text-body";
   const actions = a.step === "amount" ? (
     <>
-      {!a.seenReview && <Button variant="outline" size="lg" className={side} data-act="close" onClick={f.close}>{C.cancel}</Button>}
       <Button size="lg" className={main} data-act="next" onClick={f.next}>{C.next}</Button>
     </>
   ) : a.step === "where" ? (
@@ -33,6 +32,7 @@ export function AddSheet() {
   );
   return (
     <Sheet title={title} onClose={f.close} actions={actions}
+      headerAction={<Button variant="ghost" className="h-11 text-body" data-act="close" onClick={f.close}>{C.cancel}</Button>}
       banner={a.dup ? <DupAlert text={a.dup} onCancel={f.dontAdd} onOk={f.addAnyway} /> : null}
       context={a.step === "where" ? (
         <p className="ctx text-caption text-muted-foreground"><span className="tabular-nums">{fmt(f.cents)}</span> ·{" "}
