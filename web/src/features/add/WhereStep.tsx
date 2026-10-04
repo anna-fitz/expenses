@@ -1,4 +1,4 @@
-import { Check, ChevronRight, Plus } from "lucide-react";
+import { Check, Plus, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,15 +30,23 @@ export function WhereStep({ f }: { f: AddFlow }) {
           </p>
         )}
       </div>
-      {/* The note is one tap away above the tiles, so it never pushes the store list down until it's wanted. */}
-      {a.noteOpen || a.note ? (
+      {/* Note and Details are one tap away above the tiles, so neither pushes the store list down until it's wanted. */}
+      <div className="flex flex-col">
+        <div className="flex flex-wrap items-center gap-x-5">
+          {!(a.noteOpen || a.note) && (
+            <Button type="button" variant="link" className="h-11 px-0 text-body" data-act="add-note" onClick={f.openNote}>
+              <Plus className="size-4" aria-hidden="true" />{C.addNote}</Button>
+          )}
+          <Button type="button" variant="link" className="h-11 px-0 text-body" data-act="details" aria-describedby="w-sum" onClick={() => f.openDetails(null)}>
+            <SlidersHorizontal className="size-4" aria-hidden="true" />{C.details}</Button>
+        </div>
+        <p id="w-sum" className="text-caption text-muted-foreground">{optsSummary(dateLabel(a.date), a.split, a.category)}</p>
+      </div>
+      {(a.noteOpen || a.note) && (
         <div className="grid gap-2">
           <Label htmlFor="w-note">{C.note}</Label>
           <Input id="w-note" className="h-11 text-body" placeholder={C.notePh} maxLength={140} value={a.note} onChange={(e) => f.set({ note: e.target.value })} />
         </div>
-      ) : (
-        <Button type="button" variant="link" className="h-11 self-start px-0 text-body" data-act="add-note" onClick={f.openNote}>
-          <Plus className="size-4" aria-hidden="true" />{C.addNote}</Button>
       )}
       {a.err && <p id="w-err" role="alert" className="text-caption text-destructive">{a.err}</p>}
       <div id="w-list" className="flex flex-col gap-4">
@@ -72,12 +80,6 @@ export function WhereStep({ f }: { f: AddFlow }) {
             </NativeSelect>
           </div>
         )}
-      </div>
-      <div className="flex flex-col gap-1">
-        <Button type="button" variant="outline" className="h-11 w-full justify-between text-body" data-act="details" aria-describedby="w-sum" onClick={() => f.openDetails(null)}>
-          <span>{C.details}</span><ChevronRight className="size-4" aria-hidden="true" />
-        </Button>
-        <p id="w-sum" className="text-caption text-muted-foreground">{optsSummary(dateLabel(a.date), a.split, a.category)}</p>
       </div>
     </>
   );

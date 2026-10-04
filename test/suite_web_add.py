@@ -89,12 +89,14 @@ def run(b):
     above = lambda a_, b_: pg.locator(a_).bounding_box()['y'] < pg.locator(b_).bounding_box()['y']
     check('add2: "Add note" sits above the tiles, the field hidden until asked', pg.inner_text('[data-act=add-note]') == 'Add note'
           and pg.locator('#w-note').count() == 0 and above('[data-act=add-note]', '#w-list'))
-    check('add2: Details below the tiles, with its summary', pg.inner_text('[data-act=details]') == 'Details' and above('#w-list', '[data-act=details]')
-          and pg.inner_text('#w-sum') == 'Today · split 50/50 · usual category')
+    same_row = lambda a_, b_: abs(pg.locator(a_).bounding_box()['y'] - pg.locator(b_).bounding_box()['y']) <= 2
+    check('add2: Details sits beside Add note, above the tiles, with its summary', pg.inner_text('[data-act=details]') == 'Details'
+          and same_row('[data-act=details]', '[data-act=add-note]') and above('[data-act=details]', '#w-list')
+          and above('#w-sum', '#w-list') and pg.inner_text('#w-sum') == 'Today · split 50/50 · usual category')
     pg.click('[data-act=add-note]'); pg.wait_for_timeout(80)
     check('add2: Add note opens the field, focus in it', pg.inner_text('label[for=w-note]') == 'Note' and pg.evaluate('document.activeElement.id') == 'w-note'
           and pg.get_attribute('#w-note', 'placeholder') == 'What was it? e.g., dog food' and pg.locator('[data-act=add-note]').count() == 0
-          and above('#w-note', '#w-list'))
+          and above('#w-note', '#w-list') and above('[data-act=details]', '#w-list'))
     pg.fill('#w-note', 'Paper towels'); next_step(pg)
     check('review: title, hero amount, where', pg.inner_text('#layer-title') == 'Look good?' and pg.evaluate('document.activeElement.id') == 'layer-title'
           and pg.inner_text('#rv-amt') == '$45.12' and pg.inner_text('#rv-at') == 'at Ralphs'
