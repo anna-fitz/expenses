@@ -936,6 +936,7 @@ function settleGo() {
 // The one place a settle-up is written: settlement + activity entry + expenses marked settled.
 function recordSettlement(method) {
   const list = S.expenses.slice(), t = calc(list), o = owes(t.net), dates = list.map(e => e.date).sort();
+  if (!list.length) { closeScreen(); return; }   // nothing left to settle (e.g. settled on the other phone)
   const sref = doc(collection(db, "settlements"));
   const rec = { date: todayISO(), createdAt: Date.now(), by: S.me, from: o.from || null, to: o.to || null, amountCents: Math.abs(t.net),
     kyleHalf: t.kyleHalf, breHalf: t.breHalf, kyleFull: t.kyleFull, breFull: t.breFull, count: list.length,
@@ -951,11 +952,23 @@ function recordSettlement(method) {
 }
 /* After Venmo: the app can't see the payment, so it asks once the person comes back. */
 function venmoPending() { try { return JSON.parse(store("venmoPending") || "null"); } catch (e) { return null; } }
+// Only valid while it's recent and the unsettled expenses are exactly what was being paid.
+const venmoStillValid = p => !!p && Date.now() - p.at <= 2 * 3600e3 && S.expenses.length > 0
+  && p.net === calc(S.expenses).net && p.count === S.expenses.length;
 function checkVenmoReturn() {
   const p = venmoPending(); if (!p || !S.me || !S.loaded) return;
-  if (Date.now() - p.at > 2 * 3600e3 || p.net !== calc(S.expenses).net || p.count !== S.expenses.length || !S.expenses.length) { store("venmoPending", ""); return; }
+  if (S.layer && S.layer !== "settle") return;   // never interrupt another screen; ask at the next chance
+  if (!venmoStillValid(p)) { store("venmoPending", ""); return; }
   if (S.layer !== "settle") openSettle();
   showVenmoConfirm(p.txn);
+}
+// The balance moved while the question was up: withdraw it rather than settle something nobody paid.
+function venmoWithdrawn() {
+  store("venmoPending", "");
+  if (!S.expenses.length) { closeScreen(); toast(C.alreadySettled); return; }
+  openSettle();
+  const box = $("#s-venmo"); if (box) box.insertAdjacentHTML("afterbegin", `<p class="err left" id="v-changed">${esc(C.venmoChanged)}</p>`);
+  announce(C.venmoChanged);
 }
 function showVenmoConfirm(txn) {
   const box = $("#s-venmo"); if (!box) return;
@@ -1005,7 +1018,7 @@ document.addEventListener("click", ev => {
     case "settle": openSettle(); break;
     case "settle-go": settleGo(); break;
     case "venmo": store("venmoPending", JSON.stringify({ net: calc(S.expenses).net, count: S.expenses.length, at: Date.now(), txn: el.dataset.txn })); break;
-    case "venmo-yes": store("venmoPending", ""); recordSettlement("venmo"); break;
+    case "venmo-yes": if (!venmoStillValid(venmoPending())) { venmoWithdrawn(); break; } store("venmoPending", ""); recordSettlement("venmo"); break;
     case "venmo-no": store("venmoPending", ""); openSettle(); break;
     case "profile": openProfile(); break;
     case "venmo-save": saveVenmo(); break;
@@ -1120,6 +1133,7 @@ function subscribe() {
     S.pending = snap.metadata.hasPendingWrites; S.loaded = true;
     if (S.view === "home") render(); else updateSync();
     if (!S.venmoChecked) { S.venmoChecked = true; checkVenmoReturn(); }
+    else if ($("#v-ask") && !venmoStillValid(venmoPending())) venmoWithdrawn();
   }, err));
   S.unsubs.push(onSnapshot(collection(db, "merchants"), snap => {
     const m = {}; snap.docs.forEach(d => { m[d.id] = d.data(); }); S.merchants = m;

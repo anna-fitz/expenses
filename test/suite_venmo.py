@@ -76,3 +76,32 @@ def run(b):
     pg.click('[data-act=settle]')
     check('venmo: no link when even', pg.locator('a[data-act=venmo]').count() == 0 and pg.inner_text('#s-venmo').strip() == '')
     c.close()
+    # Final review I-1 and I-2
+    block = "document.addEventListener('click', e => { if (e.target.closest('a[data-act=venmo]')) e.preventDefault(); }, true)"
+    c = new_ctx(b); pg = open_app(c); login(pg); pg.evaluate(block)
+    fs_write(pg, 'config/profile-kyle', {'venmo': 'Kyle-Test'})
+    start_add(pg); keys(pg, '100'); set_payer(pg, 'kyle'); next_step(pg); save_at_store(pg, 'costco'); pg.wait_for_timeout(100)
+    pg.click('[data-act=settle]'); pg.click('a[data-act=venmo]')
+    pg.evaluate("document.dispatchEvent(new Event('visibilitychange'))"); pg.wait_for_timeout(50)
+    fs_write(pg, 'expenses/new1', {'amountCents': 3000, 'payer': 'kyle', 'merchant': 'Target', 'category': 'Other', 'date': '2026-10-01',
+                                   'split': 'half', 'settled': False, 'createdBy': 'kyle', 'createdAt': 5})
+    check('venmo: a new expense withdraws the question', pg.locator('#v-ask').count() == 0
+          and 'The balance changed. Check it and try again.' in pg.inner_text('#s-venmo') and not [k for k in st(pg) if k.startswith('settlements/')])
+    pg.keyboard.press('Escape')
+    # the partner settles everything while the question is up
+    pg.click('[data-act=settle]'); pg.click('a[data-act=venmo]')
+    pg.evaluate("document.dispatchEvent(new Event('visibilitychange'))"); pg.wait_for_timeout(50)
+    ids = [k.split('/')[1] for k, v in st(pg).items() if k.startswith('expenses/') and not v.get('settled')]
+    pg.evaluate("([sdk, ids]) => import(sdk + 'firebase-firestore.js').then(m => { const b = m.writeBatch(); ids.forEach(id => b.update(m.doc({}, 'expenses', id), {settled: true})); return b.commit(); })", [SDK, ids])
+    pg.wait_for_timeout(100)
+    check('venmo: already settled elsewhere closes it quietly', pg.evaluate("document.getElementById('layer').hidden")
+          and pg.inner_text('#toast span') == 'Already settled up.' and not [k for k in st(pg) if k.startswith('settlements/')])
+    # I-2: coming back while doing something else leaves that screen alone
+    start_add(pg); keys(pg, '100'); set_payer(pg, 'kyle'); next_step(pg); save_at_store(pg, 'costco'); pg.wait_for_timeout(100)
+    pg.click('[data-act=settle]'); pg.click('a[data-act=venmo]'); pg.keyboard.press('Escape')
+    start_add(pg); keys(pg, '42')
+    pg.evaluate("document.dispatchEvent(new Event('visibilitychange'))"); pg.wait_for_timeout(50)
+    check('venmo: return check never interrupts another screen', pg.inner_text('#layer-title') == 'Add expense' and pg.inner_text('#amt') == '$42'
+          and pg.evaluate("localStorage.getItem('venmoPending') || ''") != '')
+    c.close()
+

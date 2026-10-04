@@ -117,6 +117,7 @@ export const C = {
   changesSaved: "Changes saved.",
   noChanges: "Nothing changed.",
   reminderTitle: "Settle-up reminder", reminderHelp: "This applies to both of you.", reminderSaved: "Reminder saved.", remindAfter: "Remind us after", remindOver: "Or when the balance is over",
+  venmoChanged: "The balance changed. Check it and try again.", alreadySettled: "Already settled up.",
   venmoAskPay: "Did the Venmo payment go through?", venmoAskRequest: "Did the Venmo request get paid?", venmoYes: "Yes, mark as paid", venmoNo: "Not yet",
   venmoInvalid: "Use 5–30 letters, numbers, dashes, or underscores", venmoSaved: "Venmo username saved.", venmoRemoved: "Venmo username removed.",
   checking: "Checking…",
