@@ -13,6 +13,7 @@ Only the two accounts listed in the database's security rules can sign in and se
 - Regular bills are one-tap buttons, with a warning when a bill is unusually high.
 - Each person has a profile (emoji, color, light or dark theme), and History keeps a log of every change.
 - Stores and bills can be renamed, merged, retired, or brought back from Profile → Shared lists, and the app asks before saving a likely duplicate.
+- Settle up with a Venmo link (amount and note filled in), and a shared reminder shows when it's been a while or the balance is high.
 - Built to meet WCAG 2.2 Level A accessibility.
 
 ## What's in this repository
