@@ -411,16 +411,13 @@ function openEdit(e) {
     <header class="top"><div class="inner" style="display:flex;align-items:center"><h1 id="layer-title">Edit expense</h1><button class="link" data-act="close">Cancel</button></div></header>
     <div class="scroll"><div class="inner">
       <label class="label" for="e-amt">Amount</label><input id="e-amt" class="input" inputmode="decimal" value="${(e.amountCents / 100).toFixed(2)}">
-      <p class="err" id="e-err" hidden style="text-align:left"></p>
-      <span class="label">Paid by</span>
-      <div class="seg" id="e-payer">${["bre", "kyle"].map(p => `<button data-act="e-payer" data-p="${p}" aria-pressed="${E.payer === p}">${PEOPLE[p]}</button>`).join("")}</div>
+      <p class="err left" id="e-err" hidden></p>
+      <div style="margin-top:14px">${payerFieldset("e-payer", E.payer)}</div>
       <label class="label" for="e-store">Store</label><input id="e-store" class="input" value="${esc(e.merchant)}" autocapitalize="words">
       <label class="label" for="e-cat">Category</label>
       <select id="e-cat" class="input">${CATEGORIES.map(c => `<option ${e.category === c ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>
       <label class="label" for="e-date">Date</label><input id="e-date" class="input" type="date" value="${esc(e.date)}">
-      <span class="label">Split</span>
-      <div class="seg" id="e-split"><button data-act="e-split" data-v="half" aria-pressed="${E.split === "half"}">50/50</button>
-        <button data-act="e-split" data-v="full" aria-pressed="${E.split === "full"}">Owed in full</button></div>
+      <div style="margin-top:14px">${splitFieldset("e-split", E.split)}</div>
       <label class="label" for="e-note">Note</label><input id="e-note" class="input" value="${esc(e.note || "")}">
       <label class="label" for="e-covers">Covers</label><input id="e-covers" class="input" value="${esc(e.covers || "")}" placeholder="July – September">
     </div></div>
@@ -431,8 +428,13 @@ function openEdit(e) {
 function saveEdit() {
   const c = toCents($("#e-amt").value), name = $("#e-store").value.trim().replace(/\s+/g, " ");
   const err = $("#e-err");
-  if (!c || c > 10000000) { err.textContent = "Enter an amount, like 24.99"; err.hidden = false; return; }
-  if (!name) { err.textContent = "Add where it was from"; err.hidden = false; return; }
+  const fail = (msg, id) => {
+    ["e-amt", "e-store"].forEach(x => { const f = $("#" + x); f.removeAttribute("aria-invalid"); f.removeAttribute("aria-describedby"); });
+    const f = $("#" + id); f.setAttribute("aria-invalid", "true"); f.setAttribute("aria-describedby", "e-err");
+    err.textContent = msg; err.hidden = false; f.focus();
+  };
+  if (!c || c > 10000000) return fail("Enter an amount, like 24.99", "e-amt");
+  if (!name) return fail("Add where it was from", "e-store");
   const data = { amountCents: c, payer: E.payer, merchant: name.slice(0, 80), category: $("#e-cat").value, date: $("#e-date").value || todayISO(),
     split: E.split, note: $("#e-note").value.trim().slice(0, 140), covers: $("#e-covers").value.trim().slice(0, 60), updatedAt: Date.now(), updatedBy: S.me };
   const changes = EDIT_FIELDS.filter(f => (E.orig[f] ?? "") !== (data[f] ?? ""))
@@ -532,8 +534,6 @@ document.addEventListener("click", ev => {
     case "toggle-opts": readOpts(); A.showOpts = !A.showOpts; $("#w-opts").hidden = !A.showOpts;
       el.setAttribute("aria-expanded", A.showOpts); el.lastElementChild.textContent = A.showOpts ? "▴" : "▾"; $("#w-sum").textContent = optsSummary(); break;
     case "edit": { const e = S.expenses.find(x => x.id === el.dataset.id); if (e) openEdit(e); break; }
-    case "e-payer": E.payer = el.dataset.p; document.querySelectorAll("#e-payer button").forEach(b => b.setAttribute("aria-pressed", b.dataset.p === E.payer)); break;
-    case "e-split": E.split = el.dataset.v; document.querySelectorAll("#e-split button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === E.split)); break;
     case "e-save": saveEdit(); break;
     case "e-delete": deleteEdit(); break;
     case "settle": openSettle(); break;
@@ -552,6 +552,8 @@ document.addEventListener("click", ev => {
 document.addEventListener("change", ev => {
   const t = ev.target;
   if (t.name === "payer") A.payer = t.value;
+  if (t.name === "e-payer") E.payer = t.value;
+  if (t.name === "e-split") E.split = t.value;
   if (t.name === "store") { A.sel = t.value; $("#w-err").hidden = true; if (A.sel === NEW) { A.newCat = A.newCat || A.category || ""; renderStoreList(); } else $("#w-save").textContent = saveLabel(); }
   if (t.id === "w-cat") { A.newCat = t.value; t.removeAttribute("aria-invalid"); $("#w-err").hidden = true; }
   if (t.name === "o-split") { A.split = t.value; $("#o-split-help").textContent = splitHelp(); $("#w-sum").textContent = optsSummary(); }
