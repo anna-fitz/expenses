@@ -11,9 +11,9 @@ import { useVenmoReturn } from "@/features/settle/useVenmoReturn";
 import { HistoryScreen } from "@/features/history/HistoryScreen";
 import { SettlementSheet } from "@/features/history/SettlementSheet";
 import { HomeScreen } from "@/features/home/HomeScreen";
+import { InsightsScreen } from "@/features/insights/InsightsScreen";
 import { SettingsRoutes } from "@/features/settings/SettingsRoutes";
 import { Onboarding } from "./Onboarding";
-import { PlaceholderScreen } from "./PlaceholderScreen";
 import { openSheet, useRoute } from "./route";
 import { TabBar } from "./TabBar";
 import { applyTheme } from "./theme";
@@ -40,7 +40,7 @@ export function Shell() {
         <div className="mx-auto max-w-xl">
           {route.tab === "home" && <HomeScreen />}
           {route.tab === "history" && <HistoryScreen route={route} />}
-          {route.tab === "insights" && <PlaceholderScreen title={C.tabInsights} />}
+          {route.tab === "insights" && <InsightsScreen />}
           {route.tab === "settings" && <SettingsRoutes route={route} them={them} />}
         </div>
       </main>
