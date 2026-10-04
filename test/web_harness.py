@@ -34,6 +34,10 @@ def login_to(pg, who, wait_sel):
 def logout(pg): pg.evaluate("window.__fbAuth.signOut()"); pg.wait_for_selector('#login-form')
 def tab(pg, name): pg.click(f'[data-act=tab-{name}]'); pg.wait_for_timeout(100)
 def title_top(pg): return pg.evaluate("document.getElementById('screen-title').getBoundingClientRect().top")
+# Button labels use the type scale's body size (16px).
+def off_scale_buttons(pg):
+    return pg.evaluate("""() => [...document.querySelectorAll('[data-slot=button]')].filter(b => b.getClientRects().length && getComputedStyle(b).fontSize !== '16px')
+      .map(b => `"${b.textContent.trim().slice(0, 30)}" ${getComputedStyle(b).fontSize}`)""")
 def text_and_html(pg): return pg.evaluate("document.body.innerText + '\\n' + document.documentElement.outerHTML")
 
 # Design language: every tap target is at least 44×44px. A control counts as big enough when its own box is,

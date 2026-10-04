@@ -6,6 +6,9 @@ def scan(pg, name):
     small = small_targets(pg)
     check(f'targets 44px: {name}', not small)
     if small: print(f'--- small targets: {name} ---\n' + '\n'.join(small))
+    off = off_scale_buttons(pg)
+    check(f'button text 16px: {name}', not off)
+    if off: print(f'--- off-scale buttons: {name} ---\n' + '\n'.join(off))
 
 def run(b):
     for scheme in ('light', 'dark'):
