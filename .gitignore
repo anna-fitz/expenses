@@ -10,3 +10,7 @@ test/__pycache__/
 # Private notes: personal details, kept local only
 CLAUDE.md
 SETUP.md
+
+# Agent working files (plans, specs) stay local and are never committed
+docs/superpowers/
+.superpowers/
