@@ -126,6 +126,13 @@ export const splitHelp = (other, split, cents) =>
   split === "full" ? `${other} pays back the whole ${fmt(cents)}.` : `${other} owes ${fmt(Math.round(cents / 2))}.`;
 export const storeSub = (category, alsoCalled) => [category, alsoCalled ? `also called ${alsoCalled}` : ""].filter(Boolean).join(" · ");
 
+/* ---------- Add flow: store, review, and category list ---------- */
+export const storeSelected = name => `${name} selected`;
+export const categoryDefault = (category, store) => `${category} (default for ${store})`;
+export const atLine = (name, isBill) => `${isBill ? "for" : "at"} ${name}`;
+export const splitLine = (other, split, cents) => split === "full" ? "Owed in full" : `50/50, ${other} owes ${fmt(Math.round(cents / 2))}`;
+export const dateLabel = d => d === todayISO() ? "Today" : shortDate(d);
+
 /* ---------- History ---------- */
 export const settleLine = (s, names) => s.amountCents ? `${names[s.from]} paid ${names[s.to]} ${fmt(s.amountCents)}` : "Closed even";
 export const settleSub = s => `${longDate(s.date)}, ${s.count} expense${s.count === 1 ? "" : "s"}${s.method === "venmo" ? ", via Venmo" : ""}`;
@@ -190,7 +197,10 @@ export const C = {
   pwCurrent: "Current password", pwNeedCurrent: "For your security, enter your current password to continue.",
   pwWrongCurrent: "That current password isn’t right.", pwSaved: "Password saved.", pwFailed: "Couldn’t save the password. Try again.",
   appName: "Expenses",
-  add: "Add expense", step1: "Step 1 of 2", step2: "Step 2 of 2", amount: "Amount", amountHint: "Type it in, or pick a bill.",
+  add: "Add expense",
+  next: "Next", log: "Log expense", reviewTitle: "Look good?", pickBill: "Pick a bill", clear: "Clear", done: "Done", storeDefault: "Store’s default",
+  addNote: "Add note",
+  step1: "Step 1 of 2", step2: "Step 2 of 2", amount: "Amount", amountHint: "Type it in, or pick a bill.",
   bills: "Bills", change: "Change", nextStore: "Next: choose store", cancel: "Cancel", back: "Back", enterAmount: "Enter an amount",
   deleteDigit: "Delete last digit", decimal: "Decimal point", paidBy: "Paid by", you: "You", youLower: "you", someone: "Someone",
   whereTitle: "Where was it?", store: "Store", storeSearch: "Search, or type a new one", chooseStore: "Choose a store",

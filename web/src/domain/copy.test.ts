@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { C, activityLine, addNewStore, balanceLine, billNext, emptyBody, greeting, nudgeLine, optsSummary, paidByLine, privacySections, saveAt, savedLine, settleLine, settleSub, settledTitle, SIGNIN_NOTE, splitHelp, storeSub } from "./copy.js";
+import { C, activityLine, addNewStore, balanceLine, billNext, emptyBody, greeting, nudgeLine, optsSummary, paidByLine, privacySections, saveAt, savedLine, settleLine, settleSub, settledTitle, SIGNIN_NOTE, splitHelp, storeSub, atLine, categoryDefault, dateLabel, splitLine, storeSelected, todayISO } from "./copy.js";
 
 const N = { p1: "Alex", p2: "Sam" };
 describe("copy", () => {
@@ -47,5 +47,15 @@ describe("copy", () => {
   it("keeps the activity note and edit-gone message plain", () => {
     expect([C.activityNote, C.editGone].every((t) => typeof t === "string" && t.length > 0)).toBe(true);
     expect(/\p{Extended_Pictographic}/u.test(C.activityNote + C.editGone)).toBe(false);
+  });
+  it("words the redesigned add flow", () => {
+    expect(storeSelected("Costco")).toBe("Costco selected");
+    expect(categoryDefault("Groceries", "Costco")).toBe("Groceries (default for Costco)");
+    expect([atLine("Costco", false), atLine("Water", true)]).toEqual(["at Costco", "for Water"]);
+    expect(splitLine("Sam", "half", 4513)).toBe("50/50, Sam owes $22.57");
+    expect(splitLine("Sam", "full", 4513)).toBe("Owed in full");
+    expect([dateLabel(todayISO()), dateLabel("2020-09-01")]).toEqual(["Today", "Sep 1"]);
+    expect([C.next, C.log, C.reviewTitle, C.pickBill, C.clear, C.done, C.storeDefault, C.addNote])
+      .toEqual(["Next", "Log expense", "Look good?", "Pick a bill", "Clear", "Done", "Store’s default", "Add note"]);
   });
 });
