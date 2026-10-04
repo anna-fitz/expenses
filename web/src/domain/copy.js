@@ -112,6 +112,29 @@ export function nudgeLine(days, limit, settledBefore) {
 
 export const emptyBody = other => `Add the first expense and it pops up on ${other}’s phone instantly.`;
 
+/* ---------- Add and edit ---------- */
+export const billNext = (name, amount) => `Save ${name}, ${amount}`;
+export const billFor = name => `For ${name}`;
+export const saveAt = (amount, store) => `Save ${amount} at ${store}`;
+export const addNewStore = q => `Add ${q} as a new store`;
+export const categoryFor = name => `Category for ${name}`;
+export const pickCategoryFor = name => `Pick a category for ${name}`;
+export const paidByLine = (amount, who) => `${amount}, paid by ${who}`;
+export const optsSummary = (dateLabel, split, category) =>
+  [dateLabel, split === "full" ? "owed in full" : "split 50/50", category || "usual category"].join(" · ");
+export const splitHelp = (other, split, cents) =>
+  split === "full" ? `${other} pays back the whole ${fmt(cents)}.` : `${other} owes ${fmt(Math.round(cents / 2))}.`;
+export const storeSub = (category, alsoCalled) => [category, alsoCalled ? `also called ${alsoCalled}` : ""].filter(Boolean).join(" · ");
+
+/* ---------- History ---------- */
+export const settleLine = (s, names) => s.amountCents ? `${names[s.from]} paid ${names[s.to]} ${fmt(s.amountCents)}` : "Closed even";
+export const settleSub = s => `${longDate(s.date)}, ${s.count} expense${s.count === 1 ? "" : "s"}${s.method === "venmo" ? ", via Venmo" : ""}`;
+export const settledTitle = date => `Settled ${longDate(date)}`;
+export const halfPaid = name => `${name} paid, split 50/50`;
+export const halfDiff = (amount, name) => `${amount} to ${name}`;
+export const fullTo = name => `Owed in full to ${name}`;
+export const pays = (from, to) => `${from} pays ${to}`;
+
 /* ---------- Security and privacy: plain voice, no emoji ---------- */
 export const SIGNIN_NOTE = "Only the two people this app is for can sign in. Passwords are stored scrambled. Nobody can read them.";
 export const pwNote = them => `Saved by Firebase in scrambled form. Nobody can read it, including ${them}.`;
@@ -167,6 +190,23 @@ export const C = {
   pwCurrent: "Current password", pwNeedCurrent: "For your security, enter your current password to continue.",
   pwWrongCurrent: "That current password isn’t right.", pwSaved: "Password saved.", pwFailed: "Couldn’t save the password. Try again.",
   appName: "Expenses",
+  add: "Add expense", step1: "Step 1 of 2", step2: "Step 2 of 2", amount: "Amount", amountHint: "Type it in, or pick a bill.",
+  bills: "Bills", change: "Change", nextStore: "Next: choose store", cancel: "Cancel", back: "Back", enterAmount: "Enter an amount",
+  deleteDigit: "Delete last digit", decimal: "Decimal point", paidBy: "Paid by", you: "You", youLower: "you", someone: "Someone",
+  whereTitle: "Where was it?", store: "Store", storeSearch: "Search, or type a new one", chooseStore: "Choose a store",
+  pickStore: "Pick a store first", typeToAdd: "Type a store name to add it.", chooseCategory: "Choose a category",
+  usualCategory: "Use the store’s usual category", editAmount: "Edit amount", details: "Details", date: "Date", split: "Split",
+  splitHalf: "50/50", splitFull: "Owed in full", category: "Category", note: "Note", notePh: "Dog food", covers: "Covers",
+  coversPh: "July – September", coversHelp: "For bills that pay for more than one month.",
+  dupTitle: "Looks like a repeat 🔁", dupCancel: "Don’t add", dupOk: "Add anyway", undo: "Undo", edit: "Edit", dismiss: "Dismiss",
+  editTitle: "Edit expense", saveChanges: "Save changes", del: "Delete", delConfirm: "Tap again to delete",
+  amountLike: "Enter an amount, like 24.99", needStore: "Add where it was from",
+  editGone: "That expense isn’t here anymore. It was deleted or settled on the other phone.",
+  settleUps: "Settle-ups", activityTab: "Activity", noSettles: "No settle-ups yet 🧾",
+  noSettlesBody: "When you mark a balance as paid, it’s saved here with every expense it covered.",
+  showMore: "Show more", activityNote: "Shared by both of you. Entries can’t be edited or deleted.",
+  detailFailed: "Couldn’t load these expenses. Reopen when you’re online.", noExpensesFound: "No expenses found.",
+  halfDifference: "Half the difference", even: "You’re even",
   emptyTitle: "It’s quiet… too quiet 👀",
   removed: "Removed.",
   changesSaved: "Changes saved.",

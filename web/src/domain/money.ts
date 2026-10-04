@@ -1,5 +1,5 @@
 import type { Expense, Person, Settings, Settlement } from "@/data/types";
-import { daysBetween, fmtWhole, nudgeLine, todayISO } from "./copy.js";
+import { C, daysBetween, fmt, fmtWhole, fullTo, halfDiff, halfPaid, iso, nudgeLine, pays, todayISO } from "./copy.js";
 
 export type Totals = { half: Record<Person, number>; full: Record<Person, number>; paid: Record<Person, number>; net: number; diffHalf: number };
 type Money = Pick<Expense, "amountCents" | "payer" | "split">;
@@ -28,5 +28,25 @@ export const sortExpenses = (list: Expense[]) =>
 export function groupByDate(sorted: Expense[]): [string, Expense[]][] {
   const out: [string, Expense[]][] = [];
   for (const e of sorted) { const last = out[out.length - 1]; if (last && last[0] === e.date) last[1].push(e); else out.push([e.date, [e]]); }
+  return out;
+}
+export type MathRow = { label: string; value: string; total?: boolean };
+// A settle-up's math, from the totals stored on it (`${id}Half`, `${id}Full`), with member b listed first as before.
+export function settleRows(s: Settlement, a: Person, b: Person, names: Record<Person, string>): MathRow[] {
+  const n = (k: string) => Number(s[k] || 0);
+  const ah = n(`${a}Half`), bh = n(`${b}Half`), af = n(`${a}Full`), bf = n(`${b}Full`), d = Math.round((bh - ah) / 2);
+  const rows: MathRow[] = [
+    { label: halfPaid(names[b]), value: fmt(bh) }, { label: halfPaid(names[a]), value: fmt(ah) },
+    { label: C.halfDifference, value: halfDiff(fmt(Math.abs(d)), d >= 0 ? names[b] : names[a]) },
+  ];
+  if (bf) rows.push({ label: fullTo(names[b]), value: fmt(bf) });
+  if (af) rows.push({ label: fullTo(names[a]), value: fmt(af) });
+  rows.push({ label: s.amountCents && s.from && s.to ? pays(names[s.from], names[s.to]) : C.even, value: fmt(s.amountCents || 0), total: true });
+  return rows;
+}
+// Activity entries by local day, keeping their order.
+export function groupByDay<T extends { at: number }>(list: T[]): [string, T[]][] {
+  const out: [string, T[]][] = [];
+  for (const x of list) { const day = iso(new Date(x.at)), last = out[out.length - 1]; if (last && last[0] === day) last[1].push(x); else out.push([day, [x]]); }
   return out;
 }

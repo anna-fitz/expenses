@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activityLine, balanceLine, emptyBody, greeting, nudgeLine, privacySections, savedLine, SIGNIN_NOTE } from "./copy.js";
+import { C, activityLine, addNewStore, balanceLine, billNext, emptyBody, greeting, nudgeLine, optsSummary, paidByLine, privacySections, saveAt, savedLine, settleLine, settleSub, settledTitle, SIGNIN_NOTE, splitHelp, storeSub } from "./copy.js";
 
 const N = { p1: "Alex", p2: "Sam" };
 describe("copy", () => {
@@ -25,4 +25,27 @@ describe("copy", () => {
   });
   it("covers every privacy section", () =>
     expect(privacySections("Sam").map((s) => s.id)).toEqual(["where", "who", "never", "phone", "code", "log"]));
+  it("words the add flow", () => {
+    expect(billNext("Internet", "$80.00")).toBe("Save Internet, $80.00");
+    expect(saveAt("$45.12", "Costco")).toBe("Save $45.12 at Costco");
+    expect(addNewStore("Blue Bottle")).toBe("Add Blue Bottle as a new store");
+    expect(paidByLine("$45.12", "you")).toBe("$45.12, paid by you");
+    expect(optsSummary("Today", "half", "")).toBe("Today · split 50/50 · usual category");
+    expect(optsSummary("Sep 1", "full", "Coffee")).toBe("Sep 1 · owed in full · Coffee");
+    expect(splitHelp("Sam", "half", 4513)).toBe("Sam owes $22.57.");
+    expect(splitHelp("Sam", "full", 4513)).toBe("Sam pays back the whole $45.13.");
+    expect(storeSub("Groceries", "TJs")).toBe("Groceries · also called TJs");
+    expect(storeSub("", null)).toBe("");
+  });
+  it("words settle-ups", () => {
+    expect(settleLine({ amountCents: 37744, from: "p1", to: "p2" }, N)).toBe("Alex paid Sam $377.44");
+    expect(settleLine({ amountCents: 0, from: null, to: null }, N)).toBe("Closed even");
+    expect(settleSub({ date: "2026-09-30", count: 2, method: "venmo" })).toBe("Sep 30, 2026, 2 expenses, via Venmo");
+    expect(settleSub({ date: "2026-08-31", count: 1 })).toBe("Aug 31, 2026, 1 expense");
+    expect(settledTitle("2026-09-30")).toBe("Settled Sep 30, 2026");
+  });
+  it("keeps the activity note and edit-gone message plain", () => {
+    expect([C.activityNote, C.editGone].every((t) => typeof t === "string" && t.length > 0)).toBe(true);
+    expect(/\p{Extended_Pictographic}/u.test(C.activityNote + C.editGone)).toBe(false);
+  });
 });
