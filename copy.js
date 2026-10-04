@@ -61,3 +61,9 @@ export const C = {
   resetSent: "Password reset email sent.",
   resetFailed: "Couldn’t send the email. Try again.",
 };
+
+/* ---------- Profile ---------- */
+export const COLOR_NAMES = { plum: "Plum", green: "Green", blue: "Blue", teal: "Teal", coral: "Coral", amber: "Amber", rose: "Rose", slate: "Slate" };
+export const EMOJI_NAMES = { "🌻": "Sunflower", "🌵": "Cactus", "🍋": "Lemon", "🍑": "Peach", "🐶": "Dog", "🐱": "Cat", "🦊": "Fox", "🐻": "Bear",
+  "🐼": "Panda", "🐸": "Frog", "🐙": "Octopus", "☕": "Coffee", "🌙": "Moon", "⭐": "Star", "🎧": "Headphones", "🚲": "Bike" };
+export const colorMoved = (partner, colorName) => `${partner} picked this color too, so yours shows as ${colorName} for now.`;

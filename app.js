@@ -4,7 +4,7 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendP
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, query, where,
   orderBy, limit, onSnapshot, setDoc, getDoc, getDocs, writeBatch, increment }
   from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { fmt, iso, todayISO, parseISO, daysBetween, shortDate, longDate, dayLabel, timeOf, greeting, balanceLine, sinceLine, savedLine, C } from "./copy.js";
+import { fmt, iso, todayISO, parseISO, daysBetween, shortDate, longDate, dayLabel, timeOf, greeting, balanceLine, sinceLine, savedLine, C, COLOR_NAMES, EMOJI_NAMES, colorMoved } from "./copy.js";
 import { esc, openLayer, closeLayer, resetLayer, keepFocus, announce, setTitle, toast, hideToast } from "./ui.js";
 
 /* ---------------- Config ---------------- */
@@ -26,6 +26,11 @@ const PEOPLE = { bre: "Bre", kyle: "Kyle" };
 const other = p => (p === "bre" ? "kyle" : "bre");
 const CATEGORIES = ["Groceries", "Home & household", "Utilities", "Pool & yard", "Pets", "Dining & takeout", "Coffee",
   "Drinks & smoke shop", "Car & fuel", "Travel & fun", "Gifts & occasions", "Other"];
+const EMOJI = ["🌻", "🌵", "🍋", "🍑", "🐶", "🐱", "🦊", "🐻", "🐼", "🐸", "🐙", "☕", "🌙", "⭐", "🎧", "🚲"];
+// [light, dark]. Each passes 4.5:1 against the surface and background in its mode.
+const PALETTE = { plum: ["#8A4FA3", "#C79BDB"], green: ["#2F7D5B", "#7FC9A5"], blue: ["#2B63B5", "#8DB4F0"], teal: ["#1F7A80", "#79CDD2"],
+  coral: ["#C2412D", "#F29A8A"], amber: ["#A35C00", "#F2B866"], rose: ["#B83A73", "#F0A1C4"], slate: ["#4F5D75", "#AEB9CC"] };
+const DEFAULT_PROFILE = { bre: { emoji: null, color: "plum", theme: "system", updatedAt: 0 }, kyle: { emoji: null, color: "green", theme: "system", updatedAt: 0 } };
 
 // Starting data, written once when the database is empty.
 const SEED_BILLS = [
@@ -51,7 +56,7 @@ catch (e) { db = initializeFirestore(app, {}); }
 
 /* ---------------- State & helpers ---------------- */
 const S = { user: null, me: null, view: "home", expenses: [], merchants: {}, bills: [], settlements: [],
-  loaded: false, pending: false, online: navigator.onLine, unsubs: [], layer: null };
+  loaded: false, pending: false, online: navigator.onLine, unsubs: [], layer: null, profiles: {} };
 const $ = s => document.querySelector(s);
 const slug = s => String(s).toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80) || "store";
 function toCents(str) {
@@ -70,6 +75,74 @@ function writeFailed(e) {
   console.error(e);
   if (e && e.code === "permission-denied") toast(C.cantChange);
   else toast(C.cantSave);
+}
+
+/* ---------------- Profiles ---------------- */
+const profileOf = p => Object.assign({}, DEFAULT_PROFILE[p], S.profiles[p] || {});
+// If both end up with the same color (e.g. saved offline at once), whoever saved later is shown the next free color.
+function resolveColors() {
+  const b = profileOf("bre"), k = profileOf("kyle");
+  const out = { bre: PALETTE[b.color] ? b.color : "plum", kyle: PALETTE[k.color] ? k.color : "green", moved: null };
+  if (out.bre === out.kyle) {
+    const later = (b.updatedAt || 0) > (k.updatedAt || 0) ? "bre" : "kyle";
+    out[later] = Object.keys(PALETTE).find(c => c !== out[other(later)]); out.moved = later;
+  }
+  return out;
+}
+function applyPersonColors() {
+  const r = resolveColors(), s = document.documentElement.style;
+  for (const p of ["bre", "kyle"]) { s.setProperty(`--${p}-l`, PALETTE[r[p]][0]); s.setProperty(`--${p}-d`, PALETTE[r[p]][1]); }
+}
+function applyTheme(t) {
+  const h = document.documentElement;
+  if (t === "light" || t === "dark") h.dataset.theme = t; else delete h.dataset.theme;
+  store("theme", t || "system");
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m => {
+    m.content = t === "dark" ? "#121614" : t === "light" ? "#F3F4F1" : (m.media.includes("dark") ? "#121614" : "#F3F4F1");
+  });
+}
+function avatarHTML(p, size = 28) {
+  const pr = profileOf(p);
+  return `<span class="av" style="--c:var(--${p});width:${size}px;height:${size}px;font-size:${Math.round(size * 0.55)}px" aria-hidden="true">${pr.emoji ? pr.emoji : esc(PEOPLE[p][0])}</span>`;
+}
+function openProfile() { S.layer = "profile"; renderProfile(); }
+function renderProfile() {
+  const me = S.me, them = other(me), p = profileOf(me), cols = resolveColors();
+  openLayer(`<div class="frame">
+    <header class="top tall"><div class="inner"><h1 id="layer-title" class="title-lg">Profile</h1></div></header>
+    <div class="scroll"><div class="inner">
+      <div class="preview">${avatarHTML(me, 64)}<p><b>${esc(PEOPLE[me])}</b></p></div>
+      <section aria-labelledby="h-look"><h2 id="h-look" class="sec">Your look</h2>
+        <fieldset class="fs"><legend class="label">Emoji</legend><div class="emoji-grid">
+          <label class="pick"><input type="radio" name="p-emoji" value="" ${!p.emoji ? "checked" : ""}><span aria-hidden="true">${esc(PEOPLE[me][0])}</span><span class="sr">Use my initial, ${esc(PEOPLE[me][0])}</span></label>
+          ${EMOJI.map(e => `<label class="pick"><input type="radio" name="p-emoji" value="${e}" ${p.emoji === e ? "checked" : ""}><span aria-hidden="true">${e}</span><span class="sr">${esc(EMOJI_NAMES[e])}</span></label>`).join("")}
+        </div></fieldset>
+        <fieldset class="fs" style="margin-top:12px"><legend class="label">Color</legend><div class="color-grid">
+          ${Object.keys(PALETTE).map(k => { const taken = k === cols[them];
+            return `<label class="pick color"><input type="radio" name="p-color" value="${k}" ${cols[me] === k ? "checked" : ""} ${taken ? "disabled" : ""}>
+              <span class="sw" style="--sw-l:${PALETTE[k][0]};--sw-d:${PALETTE[k][1]}" aria-hidden="true"></span>
+              <span>${esc(COLOR_NAMES[k])}${taken ? `<small>${esc(PEOPLE[them])}’s color</small>` : ""}</span></label>`; }).join("")}
+        </div></fieldset>
+        ${cols.moved === me ? `<p class="help">${esc(colorMoved(PEOPLE[them], COLOR_NAMES[cols[me]]))}</p>` : ""}
+      </section>
+      <section aria-labelledby="h-app"><h2 id="h-app" class="sec">Appearance</h2>
+        <fieldset class="fs"><legend class="sr">Theme</legend><div class="segr three">
+          ${[["system", "Match phone"], ["light", "Light"], ["dark", "Dark"]].map(([v, l]) => `<label><input type="radio" name="p-theme" value="${v}" ${p.theme === v ? "checked" : ""}><span>${l}</span></label>`).join("")}
+        </div></fieldset></section>
+      <!--stats-->
+      <section aria-labelledby="h-acct"><h2 id="h-acct" class="sec">Account</h2>
+        <div class="card"><p style="margin:0 0 4px;font-weight:600">Signed in as ${esc(PEOPLE[me])}</p>
+          <p class="muted small" style="margin:0">${esc(S.user ? S.user.email : "")}</p>
+          <div class="btnrow"><button class="btn" data-act="reset-pass">Change password</button><button class="btn" data-act="signout">Sign out</button></div></div></section>
+    </div></div>
+    <footer class="dock"><div class="inner"><button class="btn" data-act="close">Back</button></div></footer>
+  </div>`);
+}
+function saveProfile(patch) {
+  const next = Object.assign(profileOf(S.me), patch, { updatedAt: Date.now() });
+  S.profiles[S.me] = next; applyPersonColors(); applyTheme(next.theme);
+  setDoc(doc(db, "config", `profile-${S.me}`), next, { merge: true }).catch(writeFailed);
+  renderProfile(); render();
 }
 
 /* ---------------- Activity log ---------------- */
@@ -166,15 +239,17 @@ function homeHTML() {
   return `<div class="frame">
     <header class="top"><div class="inner hdr">
       <div class="hello"><h1>${esc(greeting(PEOPLE[S.me], new Date().getHours()))}</h1><span class="sync" id="sync">${esc(syncLabel())}</span></div>
-      <button class="link" data-act="history">History</button></div></header>
+      <button class="link" data-act="history">History</button>
+      <button class="avatar-btn" data-act="profile" aria-label="Profile">${avatarHTML(S.me, 36)}</button>
+</div></header>
     <div class="scroll"><div class="inner">
       ${installHint()}
       <section class="hero" aria-label="Current balance">
         <p class="who">${esc(bl.who)}</p><p class="amt">${amt}</p>${bl.sub ? `<p class="sub">${esc(bl.sub)}</p>` : ""}
         <div class="bar" role="img" aria-label="You paid ${fmt(mine)}, ${esc(PEOPLE[them])} paid ${fmt(theirs)}">
           <span style="width:${myPct}%;background:var(--${S.me})"></span><span style="width:${100 - myPct}%;background:var(--${them})"></span></div>
-        <div class="legend"><span><span class="dot" style="background:var(--${S.me})"></span>You paid ${fmt(mine)}</span>
-          <span><span class="dot" style="background:var(--${them})"></span>${esc(PEOPLE[them])} paid ${fmt(theirs)}</span></div>
+        <div class="legend"><span>${avatarHTML(S.me, 18)} You paid ${fmt(mine)}</span>
+          <span>${avatarHTML(them, 18)} ${esc(PEOPLE[them])} paid ${fmt(theirs)}</span></div>
         <p class="since">${esc(since)}</p>
         ${list.length ? `<button class="btn" style="width:100%;margin-top:14px" data-act="settle">Settle up</button>` : ""}
       </section>
@@ -185,7 +260,7 @@ function homeHTML() {
 }
 function rowHTML(e, editable) {
   const sub = [PEOPLE[e.payer] + " paid", e.category, e.covers].filter(Boolean).join(", ");
-  const inner = `<span class="dot" style="background:var(--${e.payer})" aria-hidden="true"></span>
+  const inner = `${avatarHTML(e.payer, 28)}
     <span class="main"><span class="t">${esc(e.merchant)}${e.note ? ` <span class="muted" style="font-weight:400">${esc(e.note)}</span>` : ""}</span>
     <span class="s">${esc(sub)}</span></span>
     <span class="amt">${fmt(e.amountCents)}${e.split === "full" ? `<br><span class="tag">Owed in full</span>` : ""}</span>`;
@@ -201,11 +276,7 @@ function historyHTML() {
   }).join("") + `</div>`;
   return `<div class="frame">
     <header class="top"><div class="inner" style="display:flex;align-items:center"><h1>History</h1></div></header>
-    <div class="scroll"><div class="inner">${list}
-      <div class="card" style="margin-top:28px"><p style="margin:0 0 4px;font-weight:600">Signed in as ${esc(PEOPLE[S.me])}</p>
-        <p class="muted small" style="margin:0">${esc(S.user ? S.user.email : "")}</p>
-        <div style="display:flex;gap:10px;margin-top:14px"><button class="btn" data-act="reset-pass">Change password</button><button class="btn" data-act="signout">Sign out</button></div>
-      </div></div></div>
+    <div class="scroll"><div class="inner">${list}</div></div>
     <footer class="dock"><div class="inner"><button class="btn" data-act="home">Back to expenses</button></div></footer>
   </div>`;
 }
@@ -538,6 +609,7 @@ document.addEventListener("click", ev => {
     case "e-delete": deleteEdit(); break;
     case "settle": openSettle(); break;
     case "settle-go": settleGo(); break;
+    case "profile": openProfile(); break;
     case "history": S.view = "history"; render(); break;
     case "home": S.view = "home"; render(); break;
     case "detail": openDetail(el.dataset.id); break;
@@ -552,6 +624,9 @@ document.addEventListener("click", ev => {
 document.addEventListener("change", ev => {
   const t = ev.target;
   if (t.name === "payer") A.payer = t.value;
+  if (t.name === "p-emoji") saveProfile({ emoji: t.value || null });
+  if (t.name === "p-color") saveProfile({ color: t.value });
+  if (t.name === "p-theme") saveProfile({ theme: t.value });
   if (t.name === "e-payer") E.payer = t.value;
   if (t.name === "e-split") E.split = t.value;
   if (t.name === "store") { A.sel = t.value; $("#w-err").hidden = true; if (A.sel === NEW) { A.newCat = A.newCat || A.category || ""; renderStoreList(); } else $("#w-save").textContent = saveLabel(); }
@@ -618,6 +693,12 @@ function subscribe() {
     const m = {}; snap.docs.forEach(d => { m[d.id] = d.data(); }); S.merchants = m;
     if (A.step === "where") renderStoreList();
   }, err));
+  for (const p of ["bre", "kyle"]) S.unsubs.push(onSnapshot(doc(db, "config", `profile-${p}`), snap => {
+    S.profiles[p] = snap.exists() ? snap.data() : {};
+    applyPersonColors(); if (p === S.me) applyTheme(profileOf(p).theme);
+    if (S.layer === "profile") renderProfile();
+    render();
+  }, err));
   S.unsubs.push(onSnapshot(collection(db, "bills"), snap => { S.bills = snap.docs.map(d => Object.assign({ id: d.id }, d.data())); }, err));
   S.unsubs.push(onSnapshot(query(collection(db, "settlements"), orderBy("createdAt", "desc"), limit(200)), snap => {
     S.settlements = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
@@ -627,8 +708,8 @@ function subscribe() {
 
 onAuthStateChanged(auth, async user => {
   S.unsubs.forEach(u => u()); S.unsubs = [];
-  S.user = user; resetLayer(); hideToast(); S.layer = null; A.step = null;
-  if (!user) { S.view = "login"; S.me = null; render(); return; }
+  S.user = user; S.profiles = {}; resetLayer(); hideToast(); S.layer = null; A.step = null;
+  if (!user) { S.view = "login"; S.me = null; applyTheme(store("theme") || "system"); render(); return; }
   S.me = PEOPLE_BY_EMAIL_HASH[await sha256(String(user.email || "").trim().toLowerCase())] || null;
   if (!S.me) { S.view = "denied"; render(); return; }
   S.view = "home"; S.loaded = false; render();

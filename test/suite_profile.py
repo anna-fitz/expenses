@@ -1,0 +1,47 @@
+from harness import *
+
+def css(pg, name): return pg.evaluate(f"getComputedStyle(document.documentElement).getPropertyValue('{name}').trim()")
+
+def run(b):
+    c = new_ctx(b); pg = open_app(c); login(pg)
+    check('profile: avatar button named', pg.get_attribute('[data-act=profile]', 'aria-label') == 'Profile')
+    check('profile: avatar shows initial', pg.inner_text('[data-act=profile]').strip() == 'B')
+    pg.click('[data-act=profile]'); pg.wait_for_timeout(50)
+    check('profile: opens as a named layer', pg.inner_text('#layer-title') == 'Profile' and pg.title() == 'Profile · Expenses')
+    check('profile: sections', pg.evaluate("[...document.querySelectorAll('#layer h2')].map(h => h.textContent).join('|')") == 'Your look|Appearance|Account')
+    check('profile: partner color taken', pg.is_disabled('input[name=p-color][value=green]') and 'Kyle’s color' in pg.inner_text('#layer'))
+    pg.check('input[name=p-emoji][value="🌻"]'); pg.wait_for_timeout(50)
+    check('profile: emoji saved', st(pg).get('config/profile-bre', {}).get('emoji') == '🌻')
+    check('profile: emoji radio keeps focus', pg.evaluate("document.activeElement.name") == 'p-emoji')
+    pg.check('input[name=p-color][value=blue]'); pg.wait_for_timeout(50)
+    check('profile: color saved + applied', st(pg)['config/profile-bre']['color'] == 'blue' and css(pg, '--bre-l').lower() == '#2b63b5')
+    pg.check('input[name=p-theme][value=dark]'); pg.wait_for_timeout(50)
+    check('profile: theme applied', pg.evaluate("document.documentElement.dataset.theme") == 'dark'
+          and pg.evaluate("localStorage.getItem('theme')") == 'dark' and st(pg)['config/profile-bre']['theme'] == 'dark')
+    check('profile: account here', pg.locator('#layer [data-act=reset-pass]').count() == 1 and pg.locator('#layer [data-act=signout]').count() == 1)
+    pg.click('[data-act=close]'); pg.wait_for_timeout(50)
+    check('profile: focus back on avatar', pg.evaluate("document.activeElement.dataset.act") == 'profile')
+    open_history(pg)
+    check('profile: account gone from History', pg.locator('#app [data-act=signout]').count() == 0)
+    go_home(pg)
+    # Review Focus 3: a partner's profile update while Profile is open keeps focus
+    pg.click('[data-act=profile]'); pg.focus('input[name=p-theme][value=dark]')
+    fs_write(pg, 'config/profile-kyle', {'emoji': '🐶', 'updatedAt': 1})
+    check('profile: partner update keeps focus', pg.evaluate("document.activeElement.value") == 'dark')
+    pg.click('[data-act=close]')
+    # Partner sees it
+    logout(pg); login(pg, 'kyle')
+    check('profile: partner sees emoji', '🌻' in pg.inner_text('.legend') or '🌻' in pg.inner_text('#app'))
+    check('profile: theme is per person', pg.evaluate("document.documentElement.dataset.theme") is None)
+    # Review Focus 5: both pick the same color
+    fs_write(pg, 'config/profile-kyle', {'color': 'blue', 'updatedAt': 9999999999999})
+    check('profile: clash resolved to two colors', css(pg, '--kyle-l').lower() != css(pg, '--bre-l').lower())
+    pg.click('[data-act=profile]')
+    check('profile: clash explained to the later saver', 'picked this color too' in pg.inner_text('#layer'))
+    c.close()
+    # The early script applies the saved theme on a fresh load (signed out, so nothing else sets it)
+    c = new_ctx(b); pg = open_app(c); login(pg); pg.click('[data-act=profile]'); pg.check('input[name=p-theme][value=light]')
+    pg.click('[data-act=close]'); logout(pg)
+    pg.reload(wait_until='domcontentloaded')
+    check('profile: early theme from storage', pg.evaluate("document.documentElement.dataset.theme") == 'light')
+    c.close()
