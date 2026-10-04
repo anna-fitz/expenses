@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { AddSheet } from "@/features/add/AddSheet";
 import { EditSheet } from "@/features/expenses/EditSheet";
 import { SettleSheet } from "@/features/settle/SettleSheet";
+import { useVenmoReturn } from "@/features/settle/useVenmoReturn";
 import { HistoryScreen } from "@/features/history/HistoryScreen";
 import { SettlementSheet } from "@/features/history/SettlementSheet";
 import { HomeScreen } from "@/features/home/HomeScreen";
@@ -32,6 +33,7 @@ export function Shell() {
       s.setProperty(`--person-${slot}-ink-l`, inkOn(l)); s.setProperty(`--person-${slot}-ink-d`, inkOn(d));
     });
   }, [profiles, people]);
+  useVenmoReturn(route);
   if (me === undefined) return null;          // profile not loaded yet (avoids flashing onboarding)
   if (!me.onboarded) return <Onboarding />;
   const them = people.names[people.them];
