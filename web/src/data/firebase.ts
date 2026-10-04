@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
+import { sha256Hex } from "../domain/sha256";
 
 // Public by design: security comes from the Firestore rules, not from hiding this.
 const firebaseConfig = {
@@ -18,6 +19,7 @@ export const db = (() => {
   catch { return initializeFirestore(app, {}); }
 })();
 export async function sha256(text: string) {
+  if (!globalThis.crypto?.subtle) return sha256Hex(text);   // plain-http pages (a home-network preview) have no subtle
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }

@@ -59,3 +59,9 @@ def run(b):
     c = new_ctx(b); pg = open_app(c); login(pg, 'b_messy')
     check('shell: second member signs in (messy email)', 'Sam' in pg.inner_text('#screen-title'))
     c.close()
+    # A phone opening a home-network preview over plain http has no crypto.subtle; members must still get in.
+    c = new_ctx(b); c.add_init_script("Object.defineProperty(Crypto.prototype, 'subtle', { get: () => undefined })")
+    pg = open_app(c); login(pg)
+    check('shell: member signs in without crypto.subtle (http preview)', pg.evaluate('crypto.subtle') is None
+          and 'Alex' in pg.inner_text('#screen-title'))
+    c.close()
