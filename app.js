@@ -1125,6 +1125,16 @@ async function seedIfEmpty() {
     await b.commit();
   } catch (e) { console.warn("Seed skipped", e); }
 }
+// One-time bootstrap for the new app: it learns who's who from this record instead of from code.
+async function ensurePeopleRecord() {
+  try {
+    const ref = doc(db, "config", "people"), snap = await getDoc(ref);
+    if (snap.exists() && snap.data().members && Object.keys(snap.data().members).length) return;
+    const members = {};
+    for (const [hash, id] of Object.entries(PEOPLE_BY_EMAIL_HASH)) members[hash] = { id, name: PEOPLE[id] };
+    await setDoc(ref, { members }, { merge: true });
+  } catch (e) { console.warn("People record skipped", e); }
+}
 function subscribe() {
   S.unsubs.forEach(u => u()); S.unsubs = [];
   const err = e => { console.error(e); if (e.code === "permission-denied") toast(C.cantRead); };
@@ -1167,7 +1177,7 @@ onAuthStateChanged(auth, async user => {
   S.me = PEOPLE_BY_EMAIL_HASH[await sha256(String(user.email || "").trim().toLowerCase())] || null;
   if (!S.me) { S.view = "denied"; render(); return; }
   S.view = "home"; S.loaded = false; render();
-  subscribe(); seedIfEmpty();
+  subscribe(); seedIfEmpty(); ensurePeopleRecord();
 });
 
 if ("serviceWorker" in navigator) {
