@@ -55,7 +55,11 @@ def run(b):
     pg.click('[data-act=settle-other]'); pg.wait_for_selector('#settle-confirm')
     check('settle: the drawer asks the other way round', pg.inner_text('#settle-confirm-title') == 'Did Alex pay you $5.00?'
           and pg.inner_text('#settle-confirm-help') == 'This starts a fresh balance. The 1 expense moves to History, where you can always see it.')
+    # Escape passes to the drawer a moment after it opens (the dialog library re-ranks its layers); a person never presses that fast.
+    # In that moment the sheet now ignores Escape instead of closing (Sheet.tsx), so nothing is lost either way.
+    pg.wait_for_function("document.getElementById('settle-confirm')?.contains(document.activeElement)"); pg.wait_for_timeout(250)
     pg.keyboard.press('Escape'); pg.wait_for_timeout(250)
+    check('settle: Escape closes only the drawer', pg.locator('#settle-confirm').count() == 0 and sheet_open(pg))
     fs_write(pg, 'config/profile-p1', {'venmo': None}); pg.wait_for_timeout(100)
     check('settle: without their username, Paid another way is the main button', pg.locator('a[data-act=venmo]').count() == 0
           and pg.inner_text('#s-novenmo') == 'Alex hasn’t added a Venmo username yet. They can add it in Profile.' and pg.locator('[data-act=settle-other]').count() == 1)

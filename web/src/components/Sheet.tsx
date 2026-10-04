@@ -24,6 +24,8 @@ export function Sheet({ title, step, context, headerAction, banner, actions, onC
       <D.Portal>
         <D.Content id="layer" aria-labelledby="layer-title" aria-describedby={undefined}
           onOpenAutoFocus={(e) => { e.preventDefault(); h1.current?.focus(); }} onCloseAutoFocus={returnFocus}
+          // A drawer on top owns Escape. While one is still sliding in, the same key press could otherwise close both.
+          onEscapeKeyDown={(e) => { if (document.querySelector("[data-bottom-drawer]")) e.preventDefault(); }}
           className="fixed inset-0 z-50 flex flex-col bg-background outline-none duration-200 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom-4">
           <header className="top px-5 pt-[calc(env(safe-area-inset-top)+16px)] pb-3">
             <div className="mx-auto flex max-w-xl items-start gap-3">

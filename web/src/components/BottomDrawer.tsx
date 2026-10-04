@@ -12,7 +12,7 @@ export function BottomDrawer({ id, title, description, open, onClose, initialFoc
     <D.Root open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <D.Portal>
         <D.Overlay className="fixed inset-0 z-50 bg-black/40 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
-        <D.Content id={id} aria-labelledby={`${id}-title`} aria-describedby={description ? `${id}-help` : undefined}
+        <D.Content id={id} data-bottom-drawer="" aria-labelledby={`${id}-title`} aria-describedby={description ? `${id}-help` : undefined}
           onOpenAutoFocus={(e) => {
             opener.current = document.activeElement as HTMLElement | null;
             e.preventDefault();
