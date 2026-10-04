@@ -14,3 +14,8 @@ SETUP.md
 # Agent working files (plans, specs) stay local and are never committed
 docs/superpowers/
 .superpowers/
+
+# React app build output and dependencies
+web/node_modules/
+web/dist/
+web/dist-test/
