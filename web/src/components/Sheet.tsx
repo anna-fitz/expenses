@@ -15,7 +15,8 @@ export function Sheet({ title, step, context, headerAction, banner, actions, onC
     (opener?.isConnected && opener !== document.body ? opener : document.getElementById("screen-title"))?.focus();
   };
   useEffect(() => { const prev = document.title; document.title = `${title} · Expenses`; return () => { document.title = prev; }; }, [title]);
-  useEffect(() => { h1.current?.focus(); }, [title]);   // a new step is a new screen
+  const scroll = useRef<HTMLDivElement>(null);
+  useEffect(() => { h1.current?.focus(); scroll.current?.scrollTo(0, 0); }, [title]);   // a new step is a new screen: focus its title, start at its top
   // A toast with actions stays until dismissed; while a sheet covers the page, hide it (index.css) instead of letting it cover the sheet.
   useEffect(() => { document.documentElement.dataset.sheet = ""; return () => { delete document.documentElement.dataset.sheet; }; }, []);
   return (
@@ -34,7 +35,7 @@ export function Sheet({ title, step, context, headerAction, banner, actions, onC
               {headerAction}
             </div>
           </header>
-          <div className="scroll flex-1 overflow-y-auto px-5 pb-4"><div className="mx-auto flex min-h-full max-w-xl flex-col gap-4">{children}</div></div>
+          <div ref={scroll} className="scroll flex-1 overflow-y-auto px-5 pb-4"><div className="mx-auto flex min-h-full max-w-xl flex-col gap-4">{children}</div></div>
           {banner}
           <footer className="dock border-t bg-card px-5 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)]">
             <div className="mx-auto flex max-w-xl gap-3">{actions}</div>

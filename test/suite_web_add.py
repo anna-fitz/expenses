@@ -228,3 +228,11 @@ def run(b):
               and pg.locator('#amt-label').bounding_box()['y'] >= 0 and dock['y'] + dock['height'] <= vp[1] + 1
               and pg.evaluate('document.documentElement.scrollWidth <= window.innerWidth'))
         c.close()
+    # Final review: each step opens at its top, even after scrolling the store list on a small phone
+    c = new_ctx(b, 'light', (320, 568)); pg = open_app(c); login(pg)
+    start_add(pg); keys(pg, '12'); next_step(pg); pg.check('input[name=store][value=target]'); pg.wait_for_timeout(100)
+    scrolled = pg.evaluate("document.querySelector('#layer .scroll').scrollTop") > 0
+    next_step(pg); pg.wait_for_timeout(100)
+    check('review: opens at its top after a scrolled store list', scrolled and pg.evaluate("document.querySelector('#layer .scroll').scrollTop") == 0
+          and pg.locator('#rv-amt').bounding_box()['y'] >= pg.locator('#layer .scroll').bounding_box()['y'])
+    c.close()
