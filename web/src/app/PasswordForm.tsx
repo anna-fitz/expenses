@@ -32,7 +32,7 @@ export function PasswordForm({ them, onDone, onSkip }: { them: string; onDone: (
         <Input id="pw-new" ref={refs["pw-new"]} type={type} autoComplete="new-password" className="h-11 text-body" {...inv("pw-new")} /></div>
       <div className="grid gap-2"><Label htmlFor="pw-confirm">{C.pwConfirm}</Label>
         <Input id="pw-confirm" ref={refs["pw-confirm"]} type={type} autoComplete="new-password" className="h-11 text-body" {...inv("pw-confirm")} /></div>
-      <div className="flex items-center gap-2"><Checkbox id="pw-show" checked={show} onCheckedChange={(v) => setShow(v === true)} /><Label htmlFor="pw-show">{C.pwShow}</Label></div>
+      <div className="flex items-center gap-3"><Checkbox id="pw-show" checked={show} onCheckedChange={(v) => setShow(v === true)} /><Label htmlFor="pw-show" className="min-h-11 flex-1">{C.pwShow}</Label></div>
       {needCurrent && (<>
         <p className="text-body">{C.pwNeedCurrent}</p>
         <div className="grid gap-2"><Label htmlFor="pw-current">{C.pwCurrent}</Label>

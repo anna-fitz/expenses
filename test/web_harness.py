@@ -33,4 +33,17 @@ def login_to(pg, who, wait_sel):
     pg.fill('#l-email', ACC[who]); pg.fill('#l-pass', 'correct-horse'); pg.click('#l-btn'); pg.wait_for_selector(wait_sel); pg.wait_for_timeout(150)
 def logout(pg): pg.evaluate("window.__fbAuth.signOut()"); pg.wait_for_selector('#login-form')
 def tab(pg, name): pg.click(f'[data-act=tab-{name}]'); pg.wait_for_timeout(100)
+def title_top(pg): return pg.evaluate("document.getElementById('screen-title').getBoundingClientRect().top")
 def text_and_html(pg): return pg.evaluate("document.body.innerText + '\\n' + document.documentElement.outerHTML")
+
+# Design language: every tap target is at least 44×44px. A control counts as big enough when its own box is,
+# or when its <label for> is (a checkbox's whole label row is the target). Returns the offenders.
+def small_targets(pg):
+    return pg.evaluate("""() => [...document.querySelectorAll('a[href], button, summary, input:not([type=hidden]), select, textarea, [role=checkbox], [role=radio]')]
+      .filter(el => {
+        const ok = r => r.width >= 44 && r.height >= 44, r = el.getBoundingClientRect();
+        if ((!r.width && !r.height) || el.closest('[aria-hidden=true]')) return false;
+        const l = el.id && document.querySelector(`label[for="${el.id}"]`);
+        return !ok(r) && !(l && ok(l.getBoundingClientRect()));
+      })
+      .map(el => `${el.tagName.toLowerCase()}${el.id ? '#' + el.id : ''} "${(el.textContent || '').trim().slice(0, 30)}" ${Math.round(el.getBoundingClientRect().width)}x${Math.round(el.getBoundingClientRect().height)}`)""")

@@ -19,7 +19,7 @@ export function PrivacyScreen({ them }: { them: string }) {
   useScreen(C.privacyTitle, h1, true);
   return (
     <div className="flex flex-col gap-4">
-      <a href="#/settings" className="text-caption text-muted-foreground underline underline-offset-4">← {C.tabSettings}</a>
+      <a href="#/settings" className="inline-flex min-h-11 items-center self-start text-caption text-muted-foreground underline underline-offset-4">← {C.tabSettings}</a>
       <h1 id="screen-title" ref={h1} tabIndex={-1} className="text-title outline-none">{C.privacyTitle}</h1>
       <PrivacyContent them={them} />
     </div>

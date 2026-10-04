@@ -42,7 +42,7 @@ export function LoginScreen() {
           <Input id="l-pass" name="password" type="password" autoComplete="current-password" className="h-11 text-body" {...inv} /></div>
         {err && <p id="l-err" role="alert" className="text-caption text-destructive">{err}</p>}
         <Button id="l-btn" type="submit" size="lg" className="h-11" disabled={busy}>{busy ? C.signingIn : C.signIn}</Button>
-        <Button type="button" variant="link" data-act="forgot" onClick={forgot}>{C.forgot}</Button>
+        <Button type="button" variant="link" className="h-11" data-act="forgot" onClick={forgot}>{C.forgot}</Button>
         <SecurityNote id="signin-note">{SIGNIN_NOTE}</SecurityNote>
       </form>
     </main>

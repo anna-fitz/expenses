@@ -1,5 +1,11 @@
 from web_harness import *
-from suite_axe import scan
+from suite_axe import scan as _scan
+
+def scan(pg, name):
+    _scan(pg, name)
+    small = small_targets(pg)
+    check(f'targets 44px: {name}', not small)
+    if small: print(f'--- small targets: {name} ---\n' + '\n'.join(small))
 
 def run(b):
     for scheme in ('light', 'dark'):

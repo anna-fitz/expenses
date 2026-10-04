@@ -3,14 +3,14 @@ from web_harness import *
 def run(b):
     c = new_ctx(b); pg = open_app(c, onboarded=False)
     login_to(pg, 'a', '#onboarding')
-    check('onboarding: privacy step first', pg.inner_text('#screen-title') == 'Before you start: how your data is protected'
+    check('onboarding: privacy step first', pg.inner_text('#screen-title') == 'How your data is protected'
           and pg.evaluate('document.activeElement.id') == 'screen-title' and pg.locator('#ob-points > li').count() == 5
-          and 'Sam' in pg.inner_text('#ob-points'))
+          and 'Sam' in pg.inner_text('#ob-points') and title_top(pg) >= 40)
     pg.click('#onboarding summary'); pg.wait_for_timeout(50)
     check('onboarding: full details expand', pg.locator('#onboarding #privacy-log').is_visible())
     pg.click('[data-act=ob-continue]'); pg.wait_for_timeout(100)
     check('onboarding: password step', pg.inner_text('#screen-title') == 'Set your own password'
-          and 'Nobody can read it, including Sam.' in pg.inner_text('#onboarding'))
+          and 'Nobody can read it, including Sam.' in pg.inner_text('#onboarding') and title_top(pg) >= 40)
     pg.fill('#pw-new', 'short'); pg.fill('#pw-confirm', 'short'); pg.click('[data-act=pw-save]'); pg.wait_for_timeout(50)
     check('onboarding: too short', pg.inner_text('#pw-err') == 'Use at least 12 characters.'
           and pg.get_attribute('#pw-new', 'aria-invalid') == 'true' and pg.evaluate('document.activeElement.id') == 'pw-new')

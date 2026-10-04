@@ -6,6 +6,7 @@ def no_personal(pg):
 
 def run(b):
     c = new_ctx(b); pg = open_app(c)
+    check('shell: sign-in heading matches the app name', pg.inner_text('#login-form h1') == 'Expenses')
     check('privacy: sign-in title and note', pg.title() == 'Sign in · Expenses'
           and pg.inner_text('#signin-note') == 'Only the two people this app is for can sign in. Passwords are stored scrambled. Nobody can read them.')
     check('privacy: nothing personal before sign-in', no_personal(pg))
@@ -20,16 +21,19 @@ def run(b):
     login(pg)
     check('shell: home after sign in', pg.title() == 'Expenses' and pg.get_attribute('[data-act=tab-home]', 'aria-current') == 'page'
           and pg.inner_text('#screen-title').startswith(('Morning, Alex', 'Afternoon, Alex', 'Evening, Alex')))
+    check('shell: room above the Home title', title_top(pg) >= 40)
     check('shell: four tabs in a labelled nav', pg.evaluate("document.querySelector('nav[aria-label=Main]').querySelectorAll('a').length") == 4)
     for name, title in (('history', 'History'), ('insights', 'Insights'), ('settings', 'Settings')):
         tab(pg, name)
         check(f'shell: {name} tab', pg.inner_text('#screen-title') == title and pg.title() == f'{title} · Expenses'
-              and pg.evaluate('document.activeElement.id') == 'screen-title' and pg.evaluate('location.hash') == f'#/{name}')
+              and pg.evaluate('document.activeElement.id') == 'screen-title' and pg.evaluate('location.hash') == f'#/{name}'
+              and title_top(pg) >= 40)
     check('session: sign-out note', pg.inner_text('#signout-note') == 'Signing out erases this app’s data from this phone.')
     pg.click('[data-act=privacy]'); pg.wait_for_timeout(100)
     check('privacy: page with every section', pg.inner_text('#screen-title') == 'Privacy & security'
           and all(pg.locator(f'#privacy-{s}').count() == 1 for s in ('where', 'who', 'never', 'phone', 'code', 'log'))
-          and 'Sam' in pg.inner_text('#privacy-who') and 'nam5' in pg.inner_text('#privacy-where'))
+          and 'Sam' in pg.inner_text('#privacy-who') and 'nam5' in pg.inner_text('#privacy-where')
+          and pg.evaluate("document.querySelector('a[href=\"#/settings\"]').getBoundingClientRect().top") < 40)
     tab(pg, 'home')
     fs_write(pg, 'config/profile-p1', {'theme': 'dark'})
     check('shell: profile theme dark', pg.evaluate("document.documentElement.classList.contains('dark')"))

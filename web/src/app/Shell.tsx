@@ -5,6 +5,7 @@ import { useData } from "@/data/data";
 import { signOutAndErase } from "@/data/session";
 import { C } from "@/domain/copy.js";
 import { PERSON_COLORS, inkOn, resolveColors } from "@/domain/people";
+import { cn } from "@/lib/utils";
 import { HomeScreen } from "@/features/home/HomeScreen";
 import { Onboarding } from "./Onboarding";
 import { PlaceholderScreen } from "./PlaceholderScreen";
@@ -31,7 +32,7 @@ export function Shell() {
   const them = people.names[people.them];
   return (
     <div className="flex h-dvh flex-col">
-      <main className="flex-1 overflow-y-auto px-5 pb-6 pt-[calc(env(safe-area-inset-top)+16px)]">
+      <main className={cn("flex-1 overflow-y-auto px-5 pb-6", route.sub ? "pt-[calc(env(safe-area-inset-top)+16px)]" : "pt-[calc(env(safe-area-inset-top)+40px)]")}>
         <div className="mx-auto max-w-xl">
           {route.tab === "home" && <HomeScreen />}
           {route.tab === "history" && <PlaceholderScreen title={C.tabHistory} />}
