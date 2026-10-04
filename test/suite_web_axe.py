@@ -7,7 +7,7 @@ def scan(pg, name):
     check(f'targets 44px: {name}', not small)
     if small: print(f'--- small targets: {name} ---\n' + '\n'.join(small))
     labels = off_scale_labels(pg)
-    check(f'label text 12px: {name}', not labels)
+    check(f'label text 16px: {name}', not labels)
     if labels: print(f'--- off-scale labels: {name} ---\n' + '\n'.join(labels))
     off = off_scale_buttons(pg)
     check(f'button text 16px: {name}', not off)
