@@ -75,4 +75,5 @@ def run(b):
     import re
     cache_name = re.search(r'const CACHE = "([^"]+)"', open(os.path.join(SITE, 'sw.js'), encoding='utf-8').read()).group(1)
     check('shell cached', pg.evaluate(f'caches.open("{cache_name}").then(c=>c.keys()).then(k=>k.length)') >= 8)
+    check('Firebase SDK cached at install', pg.evaluate(f'caches.open("{cache_name}").then(c=>c.keys()).then(k=>k.filter(r=>r.url.includes("gstatic.com/firebasejs/12.19.0/")).length)') == 3)
     c.close()

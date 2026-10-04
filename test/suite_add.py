@@ -82,3 +82,32 @@ def run(b):
     check('add2: details expanded', pg.get_attribute('[data-act=toggle-opts]', 'aria-expanded') == 'true' and pg.is_visible('#o-date'))
     check('add2: split is a labelled group', pg.inner_text('#o-split-set legend') == 'Split')
     c.close()
+    # Final review #1: no overlap on short phones, default and error states
+    def layout_ok(pg):
+        g = lambda sel: pg.locator(sel).bounding_box()
+        top, label, payer, bills, keys_, dock = g('#layer .top'), g('#amt-label'), g('#payer-set'), g('#bills-h'), g('#layer .keys'), g('#layer .dock')
+        visible_area = g('#layer .amount-step')
+        # Either everything fits without overlap, or the step scrolls (content is reachable, nothing drawn over anything)
+        no_overlap = label['y'] >= top['y'] + top['height'] - 1 and payer['y'] + payer['height'] <= bills['y'] + 1 and keys_['y'] + keys_['height'] <= dock['y'] + 1
+        scrolls = pg.evaluate("(() => { const a = document.querySelector('#layer .amount-step'); return a.scrollHeight > a.clientHeight + 1; })()")
+        overlap_free = pg.evaluate("""(() => {
+          const r = s => document.querySelector(s).getBoundingClientRect();
+          const a = r('#amt-label'), p = r('#payer-set'), b = r('#bills-h');
+          return p.bottom <= b.top + 1 && a.top >= r('#layer .display').top - 1; })()""")
+        return no_overlap or (scrolls and overlap_free)
+    for vp in ((375, 647), (320, 568)):
+        c = new_ctx(b, 'light', vp); pg = open_app(c); login(pg); start_add(pg); pg.wait_for_timeout(400)
+        check(f'add1: {vp[0]}x{vp[1]} no overlap', layout_ok(pg))
+        next_step(pg); pg.wait_for_timeout(50)
+        check(f'add1: {vp[0]}x{vp[1]} no overlap with error', layout_ok(pg))
+        c.close()
+    # Final review #2: Enter on a control does that control's job, not Next
+    c = new_ctx(b); pg = open_app(c); login(pg)
+    start_add(pg); pg.focus('#layer [data-act=close]'); pg.keyboard.press('Enter'); pg.wait_for_timeout(100)
+    check('add1: Enter on Cancel cancels', pg.evaluate("document.getElementById('layer').hidden") is True)
+    start_add(pg); pg.click('[data-act=bill][data-id=water]'); pg.wait_for_timeout(50)
+    pg.focus('[data-act=clear-bill]'); pg.keyboard.press('Enter'); pg.wait_for_timeout(100)
+    check('add1: Enter on Change clears the bill, saves nothing', len(expenses(pg)) == 0 and pg.locator('#bills-h').count() == 1)
+    pg.focus('#layer-title'); pg.keyboard.type('7'); pg.keyboard.press('Enter'); pg.wait_for_timeout(100)
+    check('add1: Enter elsewhere still means Next', pg.inner_text('#layer-title') == 'Where was it?')
+    c.close()

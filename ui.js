@@ -53,17 +53,22 @@ export function announce(text) {
 }
 
 let toastTimer;
-export function hideToast() { clearTimeout(toastTimer); const t = $id("toast"); if (t) { t.hidden = true; t.innerHTML = ""; } }
+export function hideToast() { clearTimeout(toastTimer); document.body.classList.remove("toast-open"); const t = $id("toast"); if (t) { t.hidden = true; t.innerHTML = ""; } }
 // Toasts with actions (Undo, Edit) stay until dismissed: WCAG 2.2.1 Timing adjustable.
 export function toast(msg, actions = []) {
   const t = $id("toast");
   t.innerHTML = `<span>${esc(msg)}</span>`
     + actions.map((a, i) => `<button type="button" data-toast="${i}">${esc(a.label)}</button>`).join("")
     + (actions.length ? `<button type="button" data-toast="x" class="x" aria-label="Dismiss">✕</button>` : "");
-  t.hidden = false;
+  t.hidden = false; document.body.classList.add("toast-open");
   t.onclick = ev => {
     const b = ev.target.closest("[data-toast]"); if (!b) return;
     hideToast(); if (b.dataset.toast !== "x") actions[+b.dataset.toast].run();
+    // The pressed button is gone; unless the action opened a screen, put focus somewhere sensible.
+    if ($id("layer").hidden) {
+      const el = document.querySelector('#app [data-act="add"]') || document.querySelector("#app h1");
+      if (el) { if (el.tagName === "H1") el.tabIndex = -1; el.focus({ preventScroll: true }); }
+    }
   };
   clearTimeout(toastTimer);
   if (!actions.length) toastTimer = setTimeout(hideToast, 4000);

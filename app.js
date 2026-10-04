@@ -693,7 +693,7 @@ document.addEventListener("keydown", ev => {
   if (A.step === "amount" && !$("#layer").hidden) {
     if (/^[0-9.]$/.test(ev.key)) { pressKey(ev.key); ev.preventDefault(); }
     else if (ev.key === "Backspace") { pressKey("back"); ev.preventDefault(); }
-    else if (ev.key === "Enter") { amountNext(); ev.preventDefault(); }
+    else if (ev.key === "Enter" && !ev.target.closest("button, input, select, a")) { amountNext(); ev.preventDefault(); }
   }
   if (ev.key === "Escape" && !$("#layer").hidden) closeScreen();
   if (ev.key === "Enter" && ev.target.id === "w-q") { ev.preventDefault();

@@ -26,3 +26,19 @@ def run(b):
     start_add(pg)
     check('toast: hidden when a screen opens', not pg.is_visible('#toast'))
     c.close()
+    # Final review #3: focus after toast actions
+    c = new_ctx(b); pg = open_app(c); login(pg)
+    for amt in ('1', '2', '3', '4', '5', '6', '7'):
+        start_add(pg); keys(pg, amt); next_step(pg); save_at_store(pg, 'costco')
+    pg.wait_for_timeout(150)
+    # Final review #9: the persistent toast must not hide the last row
+    pg.evaluate("document.querySelector('#app .scroll').scrollTop = 1e6"); pg.wait_for_timeout(100)
+    last = pg.evaluate("[...document.querySelectorAll('#app .row')].pop().getBoundingClientRect().bottom")
+    toast_top = pg.evaluate("document.getElementById('toast').getBoundingClientRect().top")
+    check('toast: last row can scroll clear of the toast', last <= toast_top + 1)
+    pg.click('#toast [data-toast="x"]'); pg.wait_for_timeout(50)
+    check('toast: focus after Dismiss goes to Add', pg.evaluate('document.activeElement.dataset.act') == 'add')
+    start_add(pg); keys(pg, '9'); next_step(pg); save_at_store(pg, 'costco')
+    pg.click('#toast [data-toast="0"]'); pg.wait_for_timeout(100)
+    check('toast: focus after Undo goes to Add', pg.evaluate('document.activeElement.dataset.act') == 'add')
+    c.close()
