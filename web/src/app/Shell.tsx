@@ -8,6 +8,7 @@ import { PERSON_COLORS, inkOn, resolveColors } from "@/domain/people";
 import { cn } from "@/lib/utils";
 import { AddSheet } from "@/features/add/AddSheet";
 import { EditSheet } from "@/features/expenses/EditSheet";
+import { HistoryScreen } from "@/features/history/HistoryScreen";
 import { HomeScreen } from "@/features/home/HomeScreen";
 import { Onboarding } from "./Onboarding";
 import { PlaceholderScreen } from "./PlaceholderScreen";
@@ -38,7 +39,7 @@ export function Shell() {
       <main className={cn("flex-1 overflow-y-auto px-5 pb-6", page ? "pt-[calc(env(safe-area-inset-top)+16px)]" : "pt-[calc(env(safe-area-inset-top)+40px)]")}>
         <div className="mx-auto max-w-xl">
           {route.tab === "home" && <HomeScreen />}
-          {route.tab === "history" && <PlaceholderScreen title={C.tabHistory} />}
+          {route.tab === "history" && <HistoryScreen route={route} />}
           {route.tab === "insights" && <PlaceholderScreen title={C.tabInsights} />}
           {route.tab === "settings" && route.sub === "privacy" && <PrivacyScreen them={them} />}
           {route.tab === "settings" && route.sub !== "privacy" && (
