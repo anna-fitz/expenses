@@ -9,7 +9,8 @@ export function parseRoute(): Route {
   if (HOME_SHEETS.includes(t)) return { tab: "home", sub: t, id: sub || null };
   return TABS.includes(t as Tab) ? { tab: t as Tab, sub: sub || null, id: id || null } : { tab: "home", sub: null, id: null };
 }
-const isSheet = (r: Route) => r.sub === "add" || r.sub === "edit" || r.sub === "settle" || (r.tab === "settings" && r.id === "password");
+const isSheet = (r: Route) => r.sub === "add" || r.sub === "edit" || r.sub === "settle"
+  || (r.tab === "settings" && r.id === "password") || (r.tab === "settings" && r.sub === "bills" && !!r.id);
 // Sheets live in the URL so the phone's Back gesture closes them. `opened` counts sheets this app pushed:
 // closing one of those steps back (so Back won't reopen it); a sheet reached by a link is replaced instead.
 let opened = 0;
