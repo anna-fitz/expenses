@@ -1,8 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { C, activityLine, addNewStore, balanceLine, emptyBody, greeting, nudgeLine, optsSummary, privacySections, savedLine, settleLine, settleSub, settledTitle, SIGNIN_NOTE, splitHelp, storeSub, atLine, categoryDefault, dateLabel, splitLine, storeSelected, todayISO, isABill, settleHero, periodLine, payVenmo, requestVenmo, confirmTitle, confirmBody, COLOR_NAMES, billsCount, daysOpt, reminderSummary, storesCount, theirColor, tooClose, venmoPrivacy } from "./copy.js";
+import { C, activityLine, addNewStore, balanceLine, emptyBody, greeting, nudgeLine, optsSummary, privacySections, savedLine, settleLine, settleSub, settledTitle, SIGNIN_NOTE, splitHelp, storeSub, atLine, categoryDefault, dateLabel, splitLine, storeSelected, todayISO, isABill, settleHero, periodLine, payVenmo, requestVenmo, confirmTitle, confirmBody, COLOR_NAMES, billsCount, daysOpt, reminderSummary, storesCount, theirColor, tooClose, venmoPrivacy, bringBackName, billSub, mergeInto, mergeTitle, removeTitle, retireTitle, storeIsBill, storeTaken } from "./copy.js";
 
 const N = { p1: "Alex", p2: "Sam" };
 describe("copy", () => {
+  it("words stores and bills", () => {
+    expect(storeIsBill("Water")).toBe("Water is a bill. Give the store a different name.");
+    expect(storeTaken("Costco")).toBe("There’s already a store called Costco. Give the bill a different name.");
+    expect([mergeInto("Costco"), mergeTitle("TJs"), removeTitle("Aldi"), retireTitle("Water"), bringBackName("Aldi")])
+      .toEqual(["Merge into Costco", "Merge TJs into…", "Remove Aldi?", "Retire Water?", "Bring back Aldi"]);
+    expect(billSub("$280.00", "Sam")).toBe("$280.00 · usually Sam");
+    expect([C.searchStores, C.removedStores, C.bringBack, C.nameLabel, C.usualCat, C.mergeAnother, C.removeStore, C.addBill,
+      C.activeBills, C.retiredBills, C.usualAmount, C.usuallyPaidBy, C.retireBill, C.retireHelp]).toEqual([
+      "Search stores", "Removed stores", "Bring back", "Name", "Usual category", "Merge into another store", "Remove store", "Add bill",
+      "Active", "Retired", "Usual amount", "Usually paid by", "Retire bill", "It leaves Pick a bill. Past expenses stay as they are."]);
+  });
   it("words Profile and Settings", () => {
     expect([storesCount(17), storesCount(1), billsCount(6), billsCount(1)]).toEqual(["17 stores", "1 store", "6 bills", "1 bill"]);
     expect([reminderSummary(60, 50000), reminderSummary(60, 0), reminderSummary(0, 100000), reminderSummary(0, 0)])

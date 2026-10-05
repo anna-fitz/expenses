@@ -160,6 +160,16 @@ export const venmoPrivacy = them => ({
   after: ", that opens Venmo with the payment filled in. It never signs in to Venmo, and it can’t see your Venmo account, balance, or payments.",
 });
 
+/* ---------- Stores and bills (Settings) ---------- */
+export const storeIsBill = name => `${name} is a bill. Give the store a different name.`;
+export const storeTaken = name => `There’s already a store called ${name}. Give the bill a different name.`;
+export const mergeInto = name => `Merge into ${name}`;
+export const mergeTitle = name => `Merge ${name} into…`;
+export const removeTitle = name => `Remove ${name}?`;
+export const retireTitle = name => `Retire ${name}?`;
+export const bringBackName = name => `Bring back ${name}`;
+export const billSub = (amount, who) => `${amount} · usually ${who}`;
+
 /* ---------- History ---------- */
 export const settleLine = (s, names) => s.amountCents ? `${names[s.from]} paid ${names[s.to]} ${fmt(s.amountCents)}` : "Closed even";
 export const settleSub = s => `${longDate(s.date)}, ${s.count} expense${s.count === 1 ? "" : "s"}${s.method === "venmo" ? ", via Venmo" : ""}`;
@@ -225,6 +235,9 @@ export const C = {
   pwWrongCurrent: "That current password isn’t right.", pwSaved: "Password saved.", pwFailed: "Couldn’t save the password. Try again.",
   appName: "Expenses",
   add: "Add expense",
+  searchStores: "Search stores", removedStores: "Removed stores", bringBack: "Bring back", nameLabel: "Name", usualCat: "Usual category",
+  mergeAnother: "Merge into another store", removeStore: "Remove store", addBill: "Add bill", activeBills: "Active", retiredBills: "Retired",
+  usualAmount: "Usual amount", usuallyPaidBy: "Usually paid by", retireBill: "Retire bill", retireHelp: "It leaves Pick a bill. Past expenses stay as they are.",
   profile: "Profile", profileSub: "Profile, Venmo, account", shared: "Shared", sharedNote: "Changes here apply to both of you.", stores: "Stores",
   yourLook: "Your look", emoji: "Emoji", emojiHelp: "Any single emoji. Use your phone’s emoji keyboard.", useInitial: "Use my initial instead",
   oneEmoji: "Use one emoji.", emojiSaved: "Emoji saved.", emojiRemoved: "Emoji removed.", color: "Color", colorSaved: "Color saved.",
