@@ -19,6 +19,7 @@ export function SettingsScreen() {
     ["stores", C.stores, storesCount(withoutBills(pickerStores(merchants, ""), bills).length)],
     ["bills", C.bills, billsCount(bills.filter((x) => x.active !== false).length)],
     ["reminder", C.reminderTitle, reminderSummary(s.nudgeDays, s.nudgeCents)],
+    ["buckets", C.bucketsTitle, ""],
   ];
   return (
     <div className="flex flex-col gap-6">

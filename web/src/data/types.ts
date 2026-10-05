@@ -9,4 +9,4 @@ export type Settlement = { id: string; date: string; createdAt: number; from: Pe
 export type Merchant = { name: string; category?: string; count?: number; hidden?: boolean; mergedInto?: string | null };
 export type Bill = { id: string; name: string; usualCents: number; category: string; payer: Person; order: number; active?: boolean };
 export type Profile = { emoji?: string | null; color?: string; theme?: Theme; venmo?: string | null; updatedAt?: number; onboarded?: boolean };
-export type Settings = { nudgeDays: number; nudgeCents: number };
+export type Settings = { nudgeDays: number; nudgeCents: number; buckets?: Partial<Record<string, "need" | "want">> };
