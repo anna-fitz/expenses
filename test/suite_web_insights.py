@@ -68,3 +68,12 @@ def run(b):
     c, pg = at(b, '2026-08-03')
     check('insights: early days', pg.inner_text('#ontrack-status') == 'Early days')
     c.close()
+    # No summary uploaded yet: the earliest month is the first month of app data (spec), so past app months stay reachable.
+    c = new_ctx(b); c.add_init_script("window.__today = '2026-08-20'"); pg = open_app(c); login(pg)
+    fs_batch(pg, [exp_row('n1', 3000, 'p1', 'half', '2026-06-10'), exp_row('n2', 4000, 'p1', 'half', '2026-08-04')])
+    tab(pg, 'insights'); pg.wait_for_selector('#ontrack'); pg.wait_for_timeout(150)
+    ok = not pg.is_disabled('[data-act=month-prev]')
+    if ok: pg.click('[data-act=month-prev]'); pg.wait_for_timeout(200); pg.click('[data-act=month-prev]'); pg.wait_for_timeout(200)
+    check('insights: without a summary, back to the first month of app data', ok and pg.inner_text('#month-label') == 'June 2026'
+          and pg.is_disabled('[data-act=month-prev]') and 'Not enough history yet to say what’s usual.' in pg.inner_text('#ontrack'))
+    c.close()

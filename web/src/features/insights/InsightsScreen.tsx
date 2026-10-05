@@ -20,7 +20,8 @@ export function InsightsScreen({ route }: { route: Route }) {
   const m = /^\d{4}-\d{2}$/.test(route.sub || "") && (route.sub as string) <= current ? (route.sub as string) : current;
   const history = useHistory(), all = useExpensesSince(`${shiftMonth(m, -13)}-01`), map = settings.buckets || {};
   const get = (k: string) => figuresFor(k, all ?? [], history ?? null, map);
-  const earliest = history ? Object.keys(history.months).sort()[0] || current : current;
+  // The first month of the summary, or of app data (loaded 13 months back from the month shown, so going back keeps finding older months).
+  const earliest = [current, ...Object.keys(history?.months || {}), ...(all || []).map((x) => monthOf(x.date))].sort()[0];
   const go = (k: string) => { location.hash = `#/insights/${k}`; };
   const ready = history !== undefined && all !== undefined;
   return (
