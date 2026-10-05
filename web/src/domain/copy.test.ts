@@ -1,8 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { C, activityLine, addNewStore, balanceLine, emptyBody, greeting, nudgeLine, optsSummary, privacySections, savedLine, settleLine, settleSub, settledTitle, SIGNIN_NOTE, splitHelp, storeSub, atLine, categoryDefault, dateLabel, splitLine, storeSelected, todayISO, isABill, settleHero, periodLine, payVenmo, requestVenmo, confirmTitle, confirmBody, COLOR_NAMES, billsCount, daysOpt, reminderSummary, storesCount, theirColor, tooClose, venmoPrivacy, bringBackName, billSub, mergeInto, mergeTitle, removeTitle, retireTitle, storeIsBill, storeTaken } from "./copy.js";
+import { C, activityLine, addNewStore, balanceLine, emptyBody, greeting, nudgeLine, optsSummary, privacySections, savedLine, settleLine, settleSub, settledTitle, SIGNIN_NOTE, splitHelp, storeSub, atLine, categoryDefault, dateLabel, splitLine, storeSelected, todayISO, isABill, settleHero, periodLine, payVenmo, requestVenmo, confirmTitle, confirmBody, COLOR_NAMES, billsCount, daysOpt, reminderSummary, storesCount, theirColor, tooClose, venmoPrivacy, bringBackName, billSub, mergeInto, mergeTitle, removeTitle, retireTitle, storeIsBill, storeTaken, bucketLine, monthLabel, monthShort, oneOffsLine, onTrackLine, pastLine, billsSoFar } from "./copy.js";
 
 const N = { p1: "Alex", p2: "Sam" };
 describe("copy", () => {
+  it("words Insights", () => {
+    expect(onTrackLine("$600.00", "$580.65")).toBe("$600.00 so far · usually $580.65 by now");
+    expect([billsSoFar("$645.55", "$645.55"), billsSoFar("$10.00", null)]).toEqual(["Bills so far: $645.55 · usually $645.55 a month", "Bills so far: $10.00"]);
+    expect([oneOffsLine("$1,508.49", 1), oneOffsLine("$2.00", 2)]).toEqual(["One-offs: $1,508.49 · 1 purchase", "One-offs: $2.00 · 2 purchases"]);
+    expect([pastLine("July 2026", "$810.00", "$900.00", -10), pastLine("May 2026", "$9.00", "$9.00", 0), pastLine("June 2026", "$1.00", "$1.00", 12)]).toEqual([
+      "July 2026 · $810.00 everyday · usual $900.00 · 10% below usual", "May 2026 · $9.00 everyday · usual $9.00 · about usual",
+      "June 2026 · $1.00 everyday · usual $1.00 · 12% above usual"]);
+    expect([bucketLine("Wants", "$200.00", 7, 19), bucketLine("Wants", "$200.00", 7, null)]).toEqual(["Wants $200.00 · 7% (usual 19%)", "Wants $200.00 · 7%"]);
+    expect([monthLabel("2026-08"), monthShort("2026-08")]).toEqual(["August 2026", "Aug"]);
+    expect(C.historyLine).toBe("A monthly summary of your spending from before the app: totals by category and bill, with no stores, notes, or line items.");
+  });
   it("words stores and bills", () => {
     expect(storeIsBill("Water")).toBe("Water is a bill. Give the store a different name.");
     expect(storeTaken("Costco")).toBe("There’s already a store called Costco. Give the bill a different name.");

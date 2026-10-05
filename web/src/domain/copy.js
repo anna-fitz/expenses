@@ -170,6 +170,18 @@ export const retireTitle = name => `Retire ${name}?`;
 export const bringBackName = name => `Bring back ${name}`;
 export const billSub = (amount, who) => `${amount} · usually ${who}`;
 
+/* ---------- Insights ---------- */
+export const onTrackLine = (spent, byNow) => `${spent} so far · usually ${byNow} by now`;
+export const billsSoFar = (spent, usual) => usual ? `Bills so far: ${spent} · usually ${usual} a month` : `Bills so far: ${spent}`;
+export const oneOffsLine = (amount, n) => `One-offs: ${amount} · ${n} purchase${n === 1 ? "" : "s"}`;
+export const pastLine = (month, spent, usual, pct) =>
+  `${month} · ${spent} everyday · usual ${usual} · ${pct === 0 ? "about usual" : `${Math.abs(pct)}% ${pct > 0 ? "above" : "below"} usual`}`;
+export const pastBills = amount => `Bills: ${amount}`;
+export const pastOneOffs = amount => amount ? `One-offs: ${amount}` : "One-offs: none";
+export const bucketLine = (label, amount, pct, usual) => usual == null ? `${label} ${amount} · ${pct}%` : `${label} ${amount} · ${pct}% (usual ${usual}%)`;
+export const monthLabel = m => parseISO(`${m}-01`).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+export const monthShort = m => parseISO(`${m}-01`).toLocaleDateString("en-US", { month: "short" });
+
 /* ---------- History ---------- */
 export const settleLine = (s, names) => s.amountCents ? `${names[s.from]} paid ${names[s.to]} ${fmt(s.amountCents)}` : "Closed even";
 export const settleSub = s => `${longDate(s.date)}, ${s.count} expense${s.count === 1 ? "" : "s"}${s.method === "venmo" ? ", via Venmo" : ""}`;
@@ -186,7 +198,8 @@ export function privacySections(them) {
   return [
     { id: "where", title: "Where your data lives", body: [
       "Your shared expenses, history, stores, bills, settings, and profiles are stored in Google Firebase, in Google’s United States data centers (multi-region “nam5”).",
-      "Google encrypts the data while it’s sent and while it’s stored."] },
+      "Google encrypts the data while it’s sent and while it’s stored.",
+      "A monthly summary of your spending from before the app: totals by category and bill, with no stores, notes, or line items."] },
     { id: "who", title: "Who can see it", body: [
       `Only two accounts can open this data: yours and ${them}’s. Everything in the app is shared between you two, including each other’s Venmo username.`,
       "New sign-ups are turned off, so no one else can create an account.",
@@ -235,6 +248,15 @@ export const C = {
   pwWrongCurrent: "That current password isn’t right.", pwSaved: "Password saved.", pwFailed: "Couldn’t save the password. Try again.",
   appName: "Expenses",
   add: "Add expense",
+  onTrack: "On track", runningHigh: "Running high", runningLow: "Running low", earlyDays: "Early days", everyday: "Everyday spending",
+  notEnough: "Not enough history yet to say what’s usual.", noMonth: "No spending logged for this month.",
+  howUsual: "How is usual worked out?", usualExplained: "Usual is the middle value of the six months before this one, leaving out one-offs.",
+  prevMonth: "Previous month", nextMonth: "Next month", thisMonth: "This month", needsWants: "Needs vs. wants",
+  needs: "Needs", wants: "Wants", need: "Need", want: "Want", bucketsTitle: "Needs and wants",
+  bucketsHelp: "Changes here apply to both of you. Insights recalculates every month, including before the app.", saved: "Saved.",
+  oneOff: "One-off purchase", oneOffHelp: "Big, rare purchases like a dishwasher. Still counts toward settling up; Insights lists it separately.",
+  oneOffShort: "One-off", yes: "Yes", monthCol: "Month",
+  historyLine: "A monthly summary of your spending from before the app: totals by category and bill, with no stores, notes, or line items.",
   searchStores: "Search stores", removedStores: "Removed stores", bringBack: "Bring back", nameLabel: "Name", usualCat: "Usual category",
   mergeAnother: "Merge into another store", removeStore: "Remove store", addBill: "Add bill", activeBills: "Active", retiredBills: "Retired",
   usualAmount: "Usual amount", usuallyPaidBy: "Usually paid by", retireBill: "Retire bill", retireHelp: "It leaves Pick a bill. Past expenses stay as they are.",
