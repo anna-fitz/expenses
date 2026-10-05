@@ -96,3 +96,13 @@ def run(b):
     pg.evaluate("location.hash = '#/settings/stores/nope'"); pg.wait_for_timeout(250)
     check('store: a stale link lands on the list', pg.evaluate('location.hash') == '#/settings/stores')
     c.close()
+    # The merge button names the store in full on a small phone: it confirms a change that can't be undone from here.
+    cut = "[...document.querySelectorAll('[data-act=store-merge] *')].filter(e => e.scrollWidth > e.clientWidth + 1).length"
+    for vp in ((390, 844), (320, 568)):
+        c = new_ctx(b, vp=vp); pg = open_app(c); login(pg)
+        tab(pg, 'settings'); pg.click('[data-act=stores]'); pg.wait_for_timeout(150); open_store(pg, 'trader-joes')
+        pg.click('[data-act=store-merge-open]'); drawer_ready(pg, 'merge'); empty = pg.evaluate(cut)
+        pg.fill('#sm-q', 'paris'); pg.check('input[name=merge-target][value=paris-baguette]'); picked = pg.evaluate(cut)
+        check(f'merge: the button reads in full at {vp[0]}px', empty == 0 and picked == 0
+              and pg.inner_text('[data-act=store-merge]') == 'Merge into Paris Baguette')
+        c.close()

@@ -84,10 +84,10 @@ export function StorePage({ id }: { id: string }) {
       </div>
       <BottomDrawer id="merge" title={mergeTitle(m.name)} description={mergeHelp(m.name)} open={mergeOpen} onClose={() => setMergeOpen(false)}
         footer={
-          <div className="flex gap-3">
-            <Button variant="outline" size="lg" className="h-13 flex-1 text-body" data-act="merge-cancel" onClick={() => setMergeOpen(false)}>{C.venmoNo}</Button>
-            <Button size="lg" className="h-13 min-w-0 flex-[2] text-body" data-act="store-merge" onClick={tryMerge}>
-              <span className="truncate">{target && options.some((s) => s.id === target) ? mergeInto(merchants[target].name) : C.pickMerge}</span></Button>
+          <div className="flex items-stretch gap-3">
+            <Button variant="outline" size="lg" className="h-auto min-h-13 flex-1 text-body" data-act="merge-cancel" onClick={() => setMergeOpen(false)}>{C.venmoNo}</Button>
+            <Button size="lg" className="h-auto min-h-13 min-w-0 flex-[2] py-2 text-body whitespace-normal" data-act="store-merge" onClick={tryMerge}>
+              <span className="text-center">{target && options.some((s) => s.id === target) ? mergeInto(merchants[target].name) : C.pickMerge}</span></Button>
           </div>
         }>
         <div className="flex flex-col gap-3">
