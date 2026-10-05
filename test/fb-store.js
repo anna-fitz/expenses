@@ -20,7 +20,7 @@ function mkDoc(path){ const d=store[path]; return {id:path.split('/').pop(),exis
 function run(q){
   const path=q.path; const cs=q.cs||[];
   let docs=Object.keys(store).filter(p=>p.startsWith(path+'/')&&p.split('/').length===path.split('/').length+1);
-  for(const c of cs){ if(c.t==='where') docs=docs.filter(p=>store[p][c.f]===c.v); }
+  for(const c of cs){ if(c.t==='where') docs=docs.filter(p=>{ const x=store[p][c.f]; return c.op==='>='?x>=c.v:c.op==='<='?x<=c.v:x===c.v; }); }
   const o=cs.find(c=>c.t==='order'); if(o) docs.sort((a,b)=>((store[a][o.f]>store[b][o.f])?1:-1)*(o.d==='desc'?-1:1));
   const l=cs.find(c=>c.t==='limit'); if(l) docs=docs.slice(0,l.k);
   const ds=docs.map(mkDoc); return {docs:ds,size:ds.length,empty:!ds.length,metadata:{hasPendingWrites:!!window.__pending,fromCache:false}};

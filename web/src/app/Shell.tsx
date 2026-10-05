@@ -40,7 +40,7 @@ export function Shell() {
         <div className="mx-auto max-w-xl">
           {route.tab === "home" && <HomeScreen />}
           {route.tab === "history" && <HistoryScreen route={route} />}
-          {route.tab === "insights" && <InsightsScreen />}
+          {route.tab === "insights" && <InsightsScreen route={route} />}
           {route.tab === "settings" && <SettingsRoutes route={route} them={them} />}
         </div>
       </main>
