@@ -15,8 +15,8 @@ export function writeFailed(e: unknown) {
   toast.error((e as { code?: string })?.code === "permission-denied" ? C.cantChange : C.cantSave);
 }
 // One entry per add, edit, delete, or settle-up, written in the same batch as the change.
-type Entry = { action: string; expenseId?: string | null; settlementId?: string | null; summary?: unknown; changes?: Change[] };
-function logEntry(b: WriteBatch, by: Person, entry: Entry, id?: string) {
+export type Entry = { action: string; kind?: string; expenseId?: string | null; settlementId?: string | null; summary?: unknown; changes?: Change[] };
+export function logEntry(b: WriteBatch, by: Person, entry: Entry, id?: string) {
   const ref = id ? doc(db, "activity", id) : doc(collection(db, "activity"));
   b.set(ref, { at: Date.now(), by, expenseId: null, settlementId: null, summary: null, changes: [], ...entry });
 }

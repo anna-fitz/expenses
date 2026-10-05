@@ -5,9 +5,9 @@ sys.path.insert(0, HERE)
 sys.stdout.reconfigure(encoding='utf-8')
 from playwright.sync_api import sync_playwright
 from harness import R, ERRS, check, start_server, launch
-import suite_web_shell, suite_web_onboarding, suite_web_home, suite_web_add, suite_web_dupes, suite_web_edit, suite_web_history, suite_web_settle, suite_web_settings, suite_web_profile, suite_web_insights, suite_web_axe
+import suite_web_shell, suite_web_onboarding, suite_web_home, suite_web_add, suite_web_dupes, suite_web_edit, suite_web_history, suite_web_settle, suite_web_settings, suite_web_profile, suite_web_insights, suite_web_stores, suite_web_axe
 
-SUITES = [suite_web_shell, suite_web_onboarding, suite_web_home, suite_web_add, suite_web_dupes, suite_web_edit, suite_web_history, suite_web_settle, suite_web_settings, suite_web_profile, suite_web_insights, suite_web_axe]
+SUITES = [suite_web_shell, suite_web_onboarding, suite_web_home, suite_web_add, suite_web_dupes, suite_web_edit, suite_web_history, suite_web_settle, suite_web_settings, suite_web_profile, suite_web_insights, suite_web_stores, suite_web_axe]
 srv = start_server(); time.sleep(1)
 try:
     with sync_playwright() as p:

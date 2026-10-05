@@ -14,8 +14,8 @@ def run(b):
     check('settings: privacy and sign out stay', pg.locator('[data-act=privacy]').count() == 1 and pg.locator('[data-act=signout]').count() == 1
           and pg.inner_text('#signout-note') == 'Signing out erases this app’s data from this phone.')
     pg.click('[data-act=stores]'); pg.wait_for_timeout(150)
-    check('settings: Stores is coming soon, with a way back', pg.inner_text('#screen-title') == 'Stores' and pg.evaluate('location.hash') == '#/settings/stores'
-          and 'Coming soon' in pg.inner_text('main') and pg.evaluate('document.activeElement.id') == 'screen-title')
+    check('settings: Stores opens, with a way back', pg.inner_text('#screen-title') == 'Stores' and pg.evaluate('location.hash') == '#/settings/stores'
+          and pg.evaluate('document.activeElement.id') == 'screen-title')
     pg.click('[data-act=back-settings]'); pg.wait_for_timeout(150)
     check('settings: the back link returns to Settings', pg.inner_text('#screen-title') == 'Settings' and pg.evaluate('location.hash') == '#/settings')
     pg.click('[data-act=bills]'); pg.wait_for_timeout(150); pg.go_back(); pg.wait_for_timeout(150)
