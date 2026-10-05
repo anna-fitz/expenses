@@ -25,6 +25,12 @@ describe("duplicates", () => {
   });
 });
 describe("edits", () => {
+  it("treats one-off as yes/no, with absent and false the same", () => {
+    const base = { amountCents: 4512, payer: "p1", merchant: "Costco", category: "Groceries", date: "2026-10-03", split: "half", note: "", covers: "" };
+    expect(editChanges(ex({ id: "e2" }), { ...base, oneOff: false }, M)).toEqual([]);
+    expect(editChanges(ex({ id: "e2" }), { ...base, oneOff: true }, M)).toEqual([{ field: "oneOff", from: "", to: true }]);
+    expect(editChanges(ex({ id: "e2", oneOff: true }), { ...base, oneOff: false }, M)).toEqual([{ field: "oneOff", from: true, to: "" }]);
+  });
   const orig = ex({ id: "e1", merchant: "Costco Old" });
   const same = { amountCents: 4512, payer: "p1", merchant: "Costco", category: "Groceries", date: "2026-10-03", split: "half", note: "", covers: "" };
   it("an unchanged expense under its current store name has no changes", () => expect(editChanges(orig, same, M)).toEqual([]));

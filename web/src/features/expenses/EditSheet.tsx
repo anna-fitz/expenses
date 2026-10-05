@@ -4,6 +4,7 @@ import { closeSheet } from "@/app/route";
 import { Choice } from "@/components/Choice";
 import { Sheet } from "@/components/Sheet";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -16,10 +17,10 @@ import { C, todayISO } from "@/domain/copy.js";
 import { canonicalName, canonicalSlug } from "@/domain/stores.js";
 
 type Split = Expense["split"];
-type Form = { amt: string; payer: Person; store: string; category: string; date: string; split: Split; note: string; covers: string };
+type Form = { amt: string; payer: Person; store: string; category: string; date: string; split: Split; note: string; covers: string; oneOff: boolean };
 type Field = "e-amt" | "e-store";
 const formOf = (e: Expense, merchants: Record<string, Merchant>): Form => ({ amt: centsToBuf(e.amountCents), payer: e.payer,
-  store: canonicalName(merchants, e.merchant), category: e.category, date: e.date, split: e.split || "half", note: e.note || "", covers: e.covers || "" });
+  store: canonicalName(merchants, e.merchant), category: e.category, date: e.date, split: e.split || "half", note: e.note || "", covers: e.covers || "", oneOff: !!e.oneOff });
 
 // The full form, the rare path. Opened from a Home row or the "Edit" button on the saved toast.
 export function EditSheet({ id }: { id: string }) {
@@ -46,7 +47,8 @@ export function EditSheet({ id }: { id: string }) {
     if (!name) return fail(C.needStore, "e-store");
     done.current = true;
     const changed = editExpense(orig, { amountCents: c, payer: f.payer, merchant: name.slice(0, 80), category: f.category, date: f.date || todayISO(),
-      split: f.split, note: f.note.trim().slice(0, 140), covers: f.covers.trim().slice(0, 60) }, people.me, merchants);
+      split: f.split, note: f.note.trim().slice(0, 140), covers: f.covers.trim().slice(0, 60),
+      ...(f.oneOff || orig.oneOff ? { oneOff: f.oneOff } : {}) }, people.me, merchants);
     close();
     toast(changed ? C.changesSaved : C.noChanges);
   };
@@ -86,6 +88,13 @@ export function EditSheet({ id }: { id: string }) {
         <Input id="e-note" className="h-11 text-body" value={f.note} onChange={(e) => set({ note: e.target.value })} /></div>
       <div className="grid gap-2"><Label htmlFor="e-covers">{C.covers}</Label>
         <Input id="e-covers" className="h-11 text-body" placeholder={C.coversPh} value={f.covers} onChange={(e) => set({ covers: e.target.value })} /></div>
+      <div className="flex items-start gap-3">
+        <Checkbox id="e-oneoff" checked={f.oneOff} onCheckedChange={(v) => set({ oneOff: v === true })} aria-describedby="e-oneoff-help" className="mt-3" />
+        <div className="flex-1">
+          <Label htmlFor="e-oneoff" className="flex min-h-11 items-center">{C.oneOff}</Label>
+          <p id="e-oneoff-help" className="text-caption text-muted-foreground">{C.oneOffHelp}</p>
+        </div>
+      </div>
     </Sheet>
   );
 }

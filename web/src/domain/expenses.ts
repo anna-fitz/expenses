@@ -3,7 +3,7 @@ import { daysBetween } from "./copy.js";
 import { canonicalName, canonicalSlug } from "./stores.js";
 
 export const NEW_STORE = "__new__";
-export const EDIT_FIELDS = ["amountCents", "payer", "merchant", "category", "date", "split", "note", "covers"] as const;
+export const EDIT_FIELDS = ["amountCents", "payer", "merchant", "category", "date", "split", "note", "covers", "oneOff"] as const;
 export type Change = { field: string; from: unknown; to: unknown };
 export type Summary = { amountCents: number; merchant: string; payer: Person };
 export const summaryOf = (e: Pick<Expense, "amountCents" | "merchant" | "payer">): Summary => ({ amountCents: e.amountCents, merchant: e.merchant, payer: e.payer });
@@ -23,5 +23,6 @@ export function sameMonth<T extends { date?: string; createdAt?: number }>(list:
 // What an edit changed, compared against the store's current name. Empty and missing count as the same.
 export function editChanges(orig: Expense, next: Record<string, unknown>, merchants: Record<string, Merchant>): Change[] {
   const base: Record<string, unknown> = { ...orig, merchant: canonicalName(merchants, orig.merchant) };
-  return EDIT_FIELDS.filter((f) => (base[f] ?? "") !== (next[f] ?? "")).map((f) => ({ field: f, from: base[f] ?? "", to: next[f] ?? "" }));
+  const val = (o: Record<string, unknown>, f: string) => (f === "oneOff" ? (o[f] ? true : "") : (o[f] ?? ""));
+  return EDIT_FIELDS.filter((f) => val(base, f) !== val(next, f)).map((f) => ({ field: f, from: val(base, f), to: val(next, f) }));
 }

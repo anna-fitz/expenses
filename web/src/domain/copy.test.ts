@@ -3,6 +3,9 @@ import { C, activityLine, addNewStore, balanceLine, emptyBody, greeting, nudgeLi
 
 const N = { p1: "Alex", p2: "Sam" };
 describe("copy", () => {
+  it("words a one-off change in the log", () =>
+    expect(activityLine({ by: "p1", action: "edit", summary: { merchant: "Costco" }, changes: [{ field: "oneOff", from: "", to: true }] }, N))
+      .toBe("Alex changed Costco: one-off no → yes"));
   it("words Insights", () => {
     expect(onTrackLine("$600.00", "$580.65")).toBe("$600.00 so far · usually $580.65 by now");
     expect([billsSoFar("$645.55", "$645.55"), billsSoFar("$10.00", null)]).toEqual(["Bills so far: $645.55 · usually $645.55 a month", "Bills so far: $10.00"]);

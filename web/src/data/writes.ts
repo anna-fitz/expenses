@@ -7,7 +7,7 @@ import { canonicalSlug, slug } from "@/domain/stores.js";
 import { db } from "./firebase";
 import type { Expense, Merchant, People, Person } from "./types";
 
-export type ExpenseFields = Pick<Expense, "amountCents" | "payer" | "merchant" | "category" | "date" | "split"> & { note: string; covers: string };
+export type ExpenseFields = Pick<Expense, "amountCents" | "payer" | "merchant" | "category" | "date" | "split"> & { note: string; covers: string; oneOff?: boolean };
 export type NewExpense = ExpenseFields & { billId: string | null };
 
 export function writeFailed(e: unknown) {

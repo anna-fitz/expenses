@@ -18,6 +18,7 @@ export function ReviewStep({ f }: { f: AddFlow }) {
     { key: "date", label: C.date, value: dateLabel(a.date), go: () => f.openDetails("date") },
     { key: "category", label: C.category, value: a.category || target.category || "Other", go: () => f.openDetails("category") },
     ...(a.covers.trim() || a.bill ? [{ key: "covers", label: C.covers, value: a.covers.trim() || "—", go: () => f.openDetails("covers") }] : []),
+    ...(a.oneOff ? [{ key: "oneoff", label: C.oneOffShort, value: C.yes, go: () => f.openDetails("oneoff") }] : []),
   ];
   const cls = "flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left";
   const row = (r: Row) => {

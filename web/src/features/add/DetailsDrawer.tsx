@@ -1,6 +1,7 @@
 import { BottomDrawer } from "@/components/BottomDrawer";
 import { Choice } from "@/components/Choice";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -12,7 +13,7 @@ import type { AddFlow, DetailsField } from "./useAddFlow";
 type Split = Expense["split"];
 // Opening from a review row starts on that row's field.
 const START: Record<Exclude<DetailsField, null>, string> = {
-  note: "#o-note", payer: "input[name=payer]:checked", split: "input[name=o-split]:checked", date: "#o-date", category: "#o-cat", covers: "#o-covers",
+  note: "#o-note", payer: "input[name=payer]:checked", split: "input[name=o-split]:checked", date: "#o-date", category: "#o-cat", covers: "#o-covers", oneoff: "#o-oneoff",
 };
 export function DetailsDrawer({ f }: { f: AddFlow }) {
   const { a, people, storeDefault } = f, other = a.payer === people.a ? people.b : people.a, field = a.details?.field;
@@ -40,6 +41,13 @@ export function DetailsDrawer({ f }: { f: AddFlow }) {
           <Input id="o-covers" className="h-11 text-body" placeholder={C.coversPh} aria-describedby="o-covers-help" value={a.covers}
             onChange={(e) => f.set({ covers: e.target.value })} />
           <p id="o-covers-help" className="text-caption text-muted-foreground">{C.coversHelp}</p></div>
+        <div className="flex items-start gap-3">
+          <Checkbox id="o-oneoff" checked={a.oneOff} onCheckedChange={(v) => f.set({ oneOff: v === true })} aria-describedby="o-oneoff-help" className="mt-3" />
+          <div className="flex-1">
+            <Label htmlFor="o-oneoff" className="flex min-h-11 items-center">{C.oneOff}</Label>
+            <p id="o-oneoff-help" className="text-caption text-muted-foreground">{C.oneOffHelp}</p>
+          </div>
+        </div>
       </div>
     </BottomDrawer>
   );

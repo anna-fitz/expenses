@@ -46,8 +46,9 @@ export function savedLine(amount, merchant, bill) {
 }
 
 /* ---------- Activity log ---------- */
-const FIELD_NAMES = { amountCents: "amount", payer: "paid by", merchant: "store", category: "category", date: "date", split: "split", note: "note", covers: "covers" };
+const FIELD_NAMES = { amountCents: "amount", payer: "paid by", merchant: "store", category: "category", date: "date", split: "split", note: "note", covers: "covers", oneOff: "one-off" };
 function showVal(field, v, names) {
+  if (field === "oneOff") return v === true ? "yes" : "no";
   if (field === "usualCents") return fmt(v);
   if (v === "" || v == null) return "none";
   if (field === "amountCents") return fmt(v);

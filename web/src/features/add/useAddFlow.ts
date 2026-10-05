@@ -14,11 +14,11 @@ import { NEW_STORE, storeDuplicate } from "@/domain/expenses";
 import { canonicalName, pickerStores } from "@/domain/stores.js";
 
 export type Step = "amount" | "where" | "review";
-export type DetailsField = "note" | "payer" | "split" | "date" | "category" | "covers" | null;
+export type DetailsField = "note" | "payer" | "split" | "date" | "category" | "covers" | "oneoff" | null;
 export type AddState = {
   step: Step; seenReview: boolean; buf: string; payer: Person; bill: Bill | null;
   q: string; sel: string | null; newCat: string; note: string;
-  date: string; split: Expense["split"]; category: string; covers: string;
+  date: string; split: Expense["split"]; category: string; covers: string; oneOff: boolean;
   billsOpen: boolean; details: { field: DetailsField } | null;
   err: string; errField: "amount" | "store" | "cat" | null;
   dup: string | null; dupOk: boolean; checking: boolean;
@@ -35,7 +35,7 @@ type Hit = { d: Partial<Expense>; kind: "store" | "bill"; name: string };
 export function useAddFlow() {
   const { people, bills, merchants, expenses } = useData();
   const [a, setA] = useState<AddState>(() => ({ step: "amount", seenReview: false, buf: "", payer: people.me, bill: null, q: "", sel: null,
-    newCat: "", note: "", date: todayISO(), split: "half", category: "", covers: "", billsOpen: false, details: null, err: "", errField: null,
+    newCat: "", note: "", date: todayISO(), split: "half", category: "", covers: "", oneOff: false, billsOpen: false, details: null, err: "", errField: null,
     dup: null, dupOk: false, checking: false }));
   const aRef = useRef(a); aRef.current = a;
   const saving = useRef(false), seq = useRef(0), closed = useRef(false);
@@ -112,7 +112,8 @@ export function useAddFlow() {
     if (!(await checkDup()) || closed.current) { saving.current = false; return; }
     const now = aRef.current, amountCents = toCents(now.buf) || 0;
     const e = addExpense({ amountCents, payer: now.payer, merchant: t.name, category: now.category || t.category || "Other", date: now.date || todayISO(),
-      split: now.split, note: now.note.trim(), covers: now.covers.trim(), billId: now.bill?.id || null }, people.me);
+      split: now.split, note: now.note.trim(), covers: now.covers.trim(), billId: now.bill?.id || null,
+      ...(now.oneOff ? { oneOff: true } : {}) }, people.me);
     learnStore(merchants, t.name, e.category, t.isNew);
     const bill = now.bill, over = bill && bill.usualCents && amountCents > bill.usualCents * 1.2 ? fmt(bill.usualCents) : null;
     close();
