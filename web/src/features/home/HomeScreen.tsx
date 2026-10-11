@@ -4,6 +4,7 @@ import { useData } from "@/data/data";
 import { C, greeting } from "@/domain/copy.js";
 import { BalanceCard } from "./BalanceCard";
 import { ExpenseList } from "./ExpenseList";
+import { InstallHint } from "./InstallHint";
 import { NudgeAlert } from "./NudgeAlert";
 
 export function HomeScreen() {
@@ -22,6 +23,7 @@ export function HomeScreen() {
       </header>
       <BalanceCard />
       <NudgeAlert />
+      <InstallHint />
       <ExpenseList />
     </div>
   );

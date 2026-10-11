@@ -16,9 +16,12 @@ def seed_people(pg, onboarded=True):
     if onboarded:
         for i, _n in PEOPLE_FIX.values(): fs_write(pg, f'config/profile-{i}', {'onboarded': True})
 
-def open_app(c, onboarded=True):
+def open_app(c, onboarded=True, install_hint=False):
     pg = _open_app(c)
     seed_people(pg, onboarded)
+    # The install hint sits on Home until dismissed; suites other than the offline one start with it dismissed,
+    # so Home's layout is the one they were written for.
+    if not install_hint: pg.evaluate("localStorage.setItem('hideInstall', '1')")
     return pg
 
 # The app's Sign out erases the device copy and reloads. In the fakes the reload also empties the "server",
