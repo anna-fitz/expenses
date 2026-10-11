@@ -1,0 +1,439 @@
+// Every word the app shows, plus how money and dates are displayed. Edit the voice here.
+// Voice: everyday copy is playful and Discord-leaning (emoji beside words, never instead of them).
+// Security, privacy, password, and sign-in copy is plain: no emoji, no jokes. Names are always parameters.
+
+/* ---------- Formatting ---------- */
+export const fmt = c => (c < 0 ? "-" : "") + "$" + (Math.abs(c) / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const pad = n => String(n).padStart(2, "0");
+export const iso = d => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+export const todayISO = () => iso(new Date());
+export const parseISO = s => { const [y, m, d] = String(s).split("-").map(Number); return new Date(y, (m || 1) - 1, d || 1); };
+export const daysBetween = (a, b) => Math.max(0, Math.round((parseISO(b) - parseISO(a)) / 86400000));
+export const shortDate = s => parseISO(s).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+export const longDate = s => parseISO(s).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+export const timeOf = ms => new Date(ms).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+export function dayLabel(s) {
+  if (s === todayISO()) return "Today";
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  if (s === iso(y)) return "Yesterday";
+  const d = parseISO(s);
+  return d.toLocaleDateString("en-US", d.getFullYear() === new Date().getFullYear()
+    ? { weekday: "short", month: "short", day: "numeric" } : { month: "short", day: "numeric", year: "numeric" });
+}
+
+/* ---------- Home ---------- */
+export function greeting(name, hour) {
+  if (hour >= 5 && hour < 12) return `Morning, ${name} ☀️`;
+  if (hour >= 12 && hour < 17) return `Afternoon, ${name} 👋`;
+  return `Evening, ${name} 🌙`;
+}
+// net > 0 means member a owes member b. Names are always passed in.
+export function balanceLine(net, me, a, b, names) {
+  if (net === 0) return { who: "You’re even", sub: "Perfectly balanced, as all things should be ⚖️" };
+  const from = net > 0 ? a : b, to = net > 0 ? b : a;
+  return from === me ? { who: `You owe ${names[to]}`, sub: "" } : { who: `${names[from]} owes you`, sub: "" };
+}
+export function sinceLine(count, lastISO, daysAgo) {
+  if (!count) return lastISO ? `Last settled on ${shortDate(lastISO)}` : "No expenses yet";
+  const n = `${count} expense${count === 1 ? "" : "s"}`;
+  if (!lastISO) return `${n} so far`;
+  const ago = daysAgo === 0 ? "today" : daysAgo === 1 ? "1 day ago" : `${daysAgo} days ago`;
+  return `${n} since you settled on ${shortDate(lastISO)}, ${ago}`;
+}
+export function savedLine(amount, merchant, bill) {
+  if (bill) return `Logged ✅ ${amount} for ${bill.name}` + (bill.overUsual ? ` That’s more than the usual ${bill.overUsual}.` : "");
+  return `Logged ✅ ${amount} at ${merchant}`;
+}
+
+/* ---------- Activity log ---------- */
+// "You" when it's the person reading, the other person's name otherwise. Mid-sentence "you" is lower case.
+export const personName = (id, names, me, start = true) => (id && id === me ? (start ? "You" : "you") : names[id] || (start ? "Someone" : "someone"));
+function showVal(field, v, names, me) {
+  if (field === "usualCents" || field === "amountCents") return fmt(v);
+  if (field === "payer") return personName(v, names, me, false);
+  if (field === "date") return shortDate(v);
+  return String(v);
+}
+const FIELD_LABELS = { amountCents: "Amount", merchant: "Store", category: "Category", date: "Date", name: "Name", usualCents: "Usual amount" };
+// What an edit did, in plain words: added and removed for fields that were or became empty, phrases for yes/no and
+// who-pays fields, and "Field before → after" only for a real change of value. At most three, then "and N more".
+export function editPhrases(changes, names, me) {
+  const empty = v => v === "" || v == null;
+  const out = (changes || []).map(c => {
+    const { field: f, from, to } = c;
+    if (f === "oneOff") return to === true ? "Marked as a one-off" : "No longer a one-off";
+    if (f === "split") return to === "full" ? "Now owed in full" : "Now split 50/50";
+    if (f === "payer") return `Now paid by ${personName(to, names, me, false)}`;
+    if (f === "note") return empty(to) ? "Removed the note" : empty(from) ? `Added a note: “${to}”` : `Note changed to “${to}”`;
+    if (f === "covers") return empty(to) ? "Removed the months covered" : empty(from) ? `Added months covered: ${to}` : `Months covered changed to ${to}`;
+    const label = FIELD_LABELS[f] || f;
+    if (empty(from)) return `${label} set to ${showVal(f, to, names, me)}`;
+    return `${label} ${showVal(f, from, names, me)} → ${showVal(f, to, names, me)}`;
+  });
+  return out.slice(0, 3).join(" · ") + (out.length > 3 ? ` · and ${out.length - 3} more` : "");
+}
+
+// An activity entry's first line. Edits put what changed on a second line (activityDetail).
+export function activityLine(a, names, canon = n => n, me) {
+  const who = personName(a.by, names, me), s = a.summary || {};
+  switch (a.action) {
+    case "add": return `${who} added ${fmt(s.amountCents)} at ${canon(s.merchant)}`;
+    case "delete": return `${who} deleted ${fmt(s.amountCents)} at ${canon(s.merchant)}`;
+    case "edit": return `${who} edited ${canon(s.merchant)}`;
+    case "settle":
+      if (!s.amountCents) return `${who} closed an even period`;
+      return s.from === a.by ? `${who} paid ${personName(s.to, names, me, false)} ${fmt(s.amountCents)} to settle up`
+        : `${who} settled up: ${personName(s.from, names, me)} paid ${personName(s.to, names, me, false)} ${fmt(s.amountCents)}`;
+    case "store": {
+      const n = s.name, c = (a.changes || [])[0] || {};
+      if (a.kind === "rename") return `${who} renamed ${n} to ${s.to}`;
+      if (a.kind === "merge") return `${who} merged ${n} into ${s.to}`;
+      if (a.kind === "category") return `${who} changed ${n}’s usual category to ${c.to}`;
+      if (a.kind === "remove") return `${who} removed the store ${n}`;
+      if (a.kind === "restore") return `${who} brought back the store ${n}`;
+      break;
+    }
+    case "bill": {
+      if (a.kind === "add") return `${who} added the bill ${s.name}, usually ${fmt(s.amountCents)}`;
+      if (a.kind === "edit") return `${who} edited the bill ${s.name}`;
+      if (a.kind === "retire") return `${who} retired the bill ${s.name}`;
+      if (a.kind === "restore") return `${who} brought back the bill ${s.name}`;
+      break;
+    }
+  }
+  return `${who} made a change`;
+}
+export const activityDetail = (a, names, me) => (a.action === "edit" || (a.action === "bill" && a.kind === "edit") ? editPhrases(a.changes, names, me) : "");
+
+export const storeExists = name => `There’s already a store called ${name}.`;
+export const mergeHelp = name => `Past expenses at ${name} will show and count under the store you pick.`;
+
+export const billExists = name => `There’s already a bill called ${name}`;
+
+export const dupLine = (who, amount, kind, name, date) => `${who} added ${amount} ${kind === "bill" ? "for" : "at"} ${name} on ${date}. Add this one too?`;
+export const notYours = who => `Only ${who} can change or delete this one. They logged it.`;
+
+export const venmoHelp = other => `The part after @. ${other}’s phone uses this to pay or request from you.`;
+
+export const settleNote = (from, to) => from === to ? `Shared expenses, ${shortDate(from)}` : `Shared expenses, ${shortDate(from)} – ${shortDate(to)}`;
+export const payOnVenmo = (who, amount) => `Pay ${who} ${amount} on Venmo`;
+export const requestOnVenmo = (who, amount) => `Request ${amount} from ${who} on Venmo`;
+export const noVenmo = who => `${who} hasn’t added a Venmo username yet. They can add it in Profile.`;
+
+export const fmtWhole = c => "$" + (c / 100).toLocaleString("en-US");
+export function nudgeLine(days, limit, settledBefore) {
+  if (days != null && limit) return `It’s been ${days} days and the balance is over ${limit}.`;
+  if (days != null) return `It’s been ${days} days since ${settledBefore ? "you settled up" : "your first expense"}.`;
+  return `The balance is over ${limit}.`;
+}
+
+export const emptyBody = other => `Add the first expense and it pops up on ${other}’s phone instantly.`;
+
+/* ---------- Add and edit ---------- */
+export const billFor = name => `For ${name}`;
+export const addNewStore = q => `Add ${q} as a new store`;
+export const categoryFor = name => `Category for ${name}`;
+export const pickCategoryFor = name => `Pick a category for ${name}`;
+export const optsSummary = (dateLabel, split, category) =>
+  [dateLabel, split === "full" ? "owed in full" : "split 50/50", category || "usual category"].join(" · ");
+export const splitHelp = (other, split, cents) =>
+  split === "full" ? `${other} pays back the whole ${fmt(cents)}.` : `${other} owes ${fmt(Math.round(cents / 2))}.`;
+export const storeSub = (category, alsoCalled) => [category, alsoCalled ? `also called ${alsoCalled}` : ""].filter(Boolean).join(" · ");
+
+/* ---------- Add flow: store, review, and category list ---------- */
+export const storeSelected = name => `${name} selected`;
+export const isABill = name => `${name} is a bill.`;
+export const categoryDefault = (category, store) => `${category} (default for ${store})`;
+export const atLine = (name, isBill) => `${isBill ? "for" : "at"} ${name}`;
+export const splitLine = (other, split, cents) => split === "full" ? "Owed in full" : `50/50, ${other} owes ${fmt(Math.round(cents / 2))}`;
+export const dateLabel = d => d === todayISO() ? "Today" : shortDate(d);
+
+/* ---------- Settle up ---------- */
+export const settleHero = (net, me, a, b, names) => net === 0 ? "You’re even ⚖️" : balanceLine(net, me, a, b, names).who;
+export const periodLine = (count, start, end) =>
+  `${count} expense${count === 1 ? "" : "s"}, ${start === end ? shortDate(start) : `${shortDate(start)} – ${shortDate(end)}`}`;
+export const payVenmo = who => `Pay ${who} on Venmo`;
+export const requestVenmo = who => `Request from ${who} on Venmo`;
+export const confirmTitle = (kind, who, amount) =>
+  kind === "even" ? "Close this period?" : kind === "pay" ? `Did you pay ${who} ${amount}?` : `Did ${who} pay you ${amount}?`;
+export const confirmBody = n => `This starts a fresh balance. ${n === 1 ? "The 1 expense moves" : `All ${n} expenses move`} to History, where you can always see ${n === 1 ? "it" : "them"}.`;
+
+/* ---------- Profile and Settings ---------- */
+export const storesCount = n => `${n} store${n === 1 ? "" : "s"}`;
+export const billsCount = n => `${n} bill${n === 1 ? "" : "s"}`;
+export function reminderSummary(days, cents) {
+  if (days && cents) return `After ${days} days or over ${fmtWhole(cents)}`;
+  if (days) return `After ${days} days`;
+  if (cents) return `Over ${fmtWhole(cents)}`;
+  return "Off";
+}
+export const daysOpt = d => `${d} days`;
+export const theirColor = them => `${them}’s color`;
+export const tooClose = them => `Too close to ${them}’s`;
+// Plain and mechanical: what's stored, who can read it, and the one thing the app does with it.
+export const venmoPrivacy = them => ({
+  before: `Stored as text in your profile in Firebase, readable only by your account and ${them}’s. The app uses it for one thing: building a Venmo link, `,
+  code: "venmo.com/{username}?txn=pay&amount=…&note=…",
+  after: ", that opens Venmo with the payment filled in. It never signs in to Venmo, and it can’t see your Venmo account, balance, or payments.",
+});
+
+/* ---------- Stores and bills (Settings) ---------- */
+export const storeIsBill = name => `${name} is a bill. Give the store a different name.`;
+export const storeTaken = name => `There’s already a store called ${name}. Give the bill a different name.`;
+export const mergeInto = name => `Merge into ${name}`;
+export const mergeTitle = name => `Merge ${name} into…`;
+export const removeTitle = name => `Remove ${name}?`;
+export const retireTitle = name => `Retire ${name}?`;
+export const bringBackName = name => `Bring back ${name}`;
+export const billSub = (amount, who, mine) => `Usually ${amount} · ${who} ${mine ? "pay" : "pays"}`;
+
+/* ---------- Insights ---------- */
+const nth = n => n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th");
+const andList = xs => xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`;
+// This month's headline under the pace word. `diff` is the gap to the usual pace, already formatted.
+export function paceLine(status, spent, diff, day) {
+  if (status === "early") return `${spent} so far. It’s too early in the month to compare.`;
+  if (status === "on") return `${spent} so far, about what you usually spend by the ${nth(day)}`;
+  return `${spent} so far, ${diff} ${status === "high" ? "more" : "less"} than you usually spend by the ${nth(day)}`;
+}
+export const onTrackLine = (spent, byNow) => `${spent} so far · usually ${byNow} by now`;
+// Bills land at different times, so this month's bills are counted in, not totalled against a month's worth.
+export function billsIn(n, total, missing, amount) {
+  if (!total) return `Bills: ${amount}`;
+  if (n >= total) return `Bills: all ${total} in · ${amount}`;
+  return missing.length > 3 ? `Bills: ${n} of ${total} in so far` : `Bills: ${n} of ${total} in · ${andList(missing)} still to come`;
+}
+export const oneOffsLine = (amount, n) => `One-offs: ${amount} · ${n} purchase${n === 1 ? "" : "s"}`;
+export const pastLine = (spent, usual, pct) =>
+  `${pct === 0 ? "About usual" : `${Math.abs(pct)}% ${pct > 0 ? "more" : "less"} than usual`} on everyday spending: ${spent}, against a usual ${usual}.`;
+export const pastBills = amount => `Bills: ${amount}`;
+export const pastOneOffs = amount => amount ? `One-offs: ${amount}` : "One-offs: none";
+export const lastYearLine = (m, amount) => `Last ${parseISO(`${m}-01`).toLocaleDateString("en-US", { month: "long" })}: ${amount} everyday`;
+export const backTo = m => `Back to ${monthLabel(m)}`;
+export const bucketLine = (label, amount, pct, usual) => usual == null ? `${label} ${amount} · ${pct}% of the month` : `${label} ${amount} · ${pct}% of the month, usually ${usual}%`;
+// One category against its usual. Within 15% either way counts as about usual.
+export function categoryLine(cat, amount, usual, pct) {
+  if (usual == null) return `${cat} ${amount}`;
+  if (!usual) return `${cat} ${amount} · usually nothing`;
+  return Math.abs(pct) < 15 ? `${cat} ${amount} · about usual` : `${cat} ${amount} · ${Math.abs(pct)}% ${pct > 0 ? "more" : "less"} than usual (${usual})`;
+}
+export const monthLabel = m => parseISO(`${m}-01`).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+export const monthShort = m => parseISO(`${m}-01`).toLocaleDateString("en-US", { month: "short" });
+
+/* ---------- History ---------- */
+export const settleLine = (s, names, me) => s.amountCents ? `${personName(s.from, names, me)} paid ${personName(s.to, names, me, false)} ${fmt(s.amountCents)}` : "Closed even";
+// A settle-up row: the date leads (the list is grouped by year), who paid whom and how many expenses underneath.
+export const settleRowDate = s => shortDate(s.date);
+export const settleRowSub = (s, names, me) => [s.amountCents ? `${personName(s.from, names, me)} paid ${personName(s.to, names, me, false)}` : "Closed even",
+  `${s.count} expense${s.count === 1 ? "" : "s"}`, ...(s.method === "venmo" ? ["Venmo"] : [])].join(" · ");
+export const settleSub = s => `${longDate(s.date)}, ${s.count} expense${s.count === 1 ? "" : "s"}${s.method === "venmo" ? ", via Venmo" : ""}`;
+export const settledTitle = date => `Settled ${longDate(date)}`;
+export const halfPaid = name => `${name} paid, split 50/50`;
+export const halfDiff = (amount, name) => `${amount} to ${name}`;
+export const fullTo = name => `Owed in full to ${name}`;
+export const pays = (from, to) => `${from} pays ${to}`;
+
+/* ---------- Security and privacy: plain voice, no emoji ---------- */
+export const SIGNIN_NOTE = "Only the two people this app is for can sign in. Passwords are stored scrambled. Nobody can read them.";
+export const pwNote = them => `Saved by Firebase in scrambled form. Nobody can read it, including ${them}.`;
+export function privacySections(them) {
+  return [
+    { id: "where", title: "Where your data lives", body: [
+      "Your shared expenses, history, stores, bills, settings, and profiles are stored in Google Firebase, in Google’s United States data centers (multi-region “nam5”).",
+      "Google encrypts the data while it’s sent and while it’s stored.",
+      "A monthly summary of your spending from before the app: totals by category and bill, with no stores, notes, or line items."] },
+    { id: "who", title: "Who can see it", body: [
+      `Only two accounts can open this data: yours and ${them}’s. Everything in the app is shared between you two, including each other’s Venmo username.`,
+      "New sign-ups are turned off, so no one else can create an account.",
+      `You and ${them} are both admins of the Firebase project. Either of you can view or change the data, and see both email addresses, in the Firebase console.`,
+      "Google runs the servers, under Google Cloud’s terms."] },
+    { id: "never", title: "What nobody can see", body: [
+      "Your password. Firebase stores it scrambled (hashed), so no one can read it, including either admin.",
+      "Bank or card details. The app never asks for them.",
+      "Your Venmo account. The app only builds a link (venmo.com/{username}?txn=pay&amount=…) that opens Venmo with the payment filled in. It never signs in to Venmo, and can’t see your account, balance, or whether a payment went through."] },
+    { id: "phone", title: "What’s on this phone", body: [
+      "A copy of the shared data, so the app works offline. Only this app can read it.",
+      "Signing out erases it from this phone.",
+      "The app itself, so it opens without a connection. It holds no personal data.",
+      "A few preferences: your theme, and a short-lived note about a Venmo payment in progress."] },
+    { id: "code", title: "The code", body: [
+      "The app’s code is public on GitHub, so anyone can review it. It contains no names, emails, or other personal details.",
+      "The Firebase key in the code is meant to be public. It only identifies the project, and it’s limited to this website."] },
+    { id: "log", title: "The activity log", body: [
+      "Every change is recorded with who made it and when. Entries can’t be edited or deleted, except an immediate Undo."] },
+  ];
+}
+export const privacySummary = them => [
+  "Your data is stored in Google Firebase, in the United States, and encrypted.",
+  `Only your account and ${them}’s can open it. New sign-ups are off.`,
+  `You and ${them} are both admins: either of you can see the data in the Firebase console.`,
+  "Nobody can read your password, including either admin.",
+  "Signing out erases the app’s data from this phone.",
+];
+
+/* ---------- Fixed strings ---------- */
+export const C = {
+  loginHelp: "Sign in with your email and password.", email: "Email", password: "Password",
+  signIn: "Sign in", signingIn: "Signing in…", forgot: "Forgot password?",
+  loginEmpty: "Enter your email and password.", loginMismatch: "That email and password don’t match.",
+  loginMany: "Too many attempts. Wait a few minutes and try again.", loginOffline: "No connection. Connect to the internet to sign in.",
+  forgotNeedEmail: "Enter your email first, then tap Forgot password.", resetMaybe: "If that account exists, a reset email is on its way.",
+  deniedTitle: "Not set up for this app", deniedBody: "This account can sign in, but it isn’t set up for this app.",
+  signOut: "Sign out", signOutNote: "Signing out erases this app’s data from this phone.",
+  tabHome: "Home", tabHistory: "History", tabInsights: "Insights", tabSettings: "Settings",
+  soonTitle: "Coming soon 🚧", soonBody: "This part of the app is being rebuilt.",
+  privacyTitle: "Privacy & security",
+  obPrivacyTitle: "How your data is protected", obMore: "Read the full details", obContinue: "Continue",
+  pwTitle: "Set your own password", pwHelp: "Choose a password only you know. Use at least 12 characters.",
+  pwNew: "New password", pwConfirm: "Type it again", pwShow: "Show passwords", pwSave: "Save password", pwSkip: "I’ve already set my own",
+  pwShort: "Use at least 12 characters.", pwMismatch: "The two passwords don’t match.",
+  pwCurrent: "Current password", pwNeedCurrent: "For your security, enter your current password to continue.",
+  pwWrongCurrent: "That current password isn’t right.", pwSaved: "Password saved.", pwFailed: "Couldn’t save the password. Try again.",
+  appName: "Expenses",
+  add: "Add expense",
+  installTitle: "Add Expenses to your Home Screen 📲", installIos: "Tap Share, then Add to Home Screen. It opens full screen, like an app.",
+  installOther: "Open the browser menu, then Install app or Add to Home screen.",
+  onTrack: "On track", runningHigh: "Over pace", runningLow: "Under pace", earlyDays: "Early days", everyday: "Everyday spending",
+  notEnough: "Not enough history yet to say what’s usual.", noMonth: "No spending logged for this month.",
+  howUsual: "How is usual worked out?", usualExplained: "Usual is the middle value of the six months before this one, leaving out one-offs.",
+  prevMonth: "Previous month", nextMonth: "Next month", thisMonth: "This month", needsWants: "Where it went", byCategory: "Everyday spending by category", allCategories: "Show every category",
+  billIn: "in", billToCome: "still to come", usuallyPct: "usually", usualWord: "Usual",
+  byCategoryShort: "By category", yearsChartTitle: "Everyday spending, bills and one-offs by year", showTable: "Show as a table",
+  viewMonth: "Month", viewYear: "Year", jumpTo: "Go to a month", jumpToYear: "Go to a year", prevYear: "Previous year", nextYear: "Next year", yearsTable: "Every year", yearCol: "Year", soFar: "so far",
+  yearBills: "Bills", yearOneOffs: "One-offs", byCategoryYear: "Everyday spending by category, against the year before",
+  needs: "Needs", wants: "Wants", need: "Need", want: "Want", bucketsTitle: "Needs and wants",
+  historyTitle: "Spending history", historyPick: "Choose the spreadsheet", historyReading: "Reading the spreadsheet…",
+  historyNone: "Insights starts with the first month logged in the app. Add the old settle-up spreadsheet to see the years before it.",
+  historyBad: "That file couldn’t be read. Choose the old settle-up spreadsheet, saved as .xlsx.",
+  historyKeeps: "Only monthly totals by category and bill are saved. Store names, notes and who paid stay in the spreadsheet.",
+  settleUpsAdd: "Also add the old settle-ups to History", whoIsBre: "In the spreadsheet, Bre is",
+  historyAndSettlesSaved: "History added to Insights, and the settle-ups to History.",
+  historySave: "Add to Insights", historyReplace: "Replace the history", historySaved: "History added to Insights.", historyCancel: "Choose a different file",
+  bucketsHelp: "Changes here apply to both of you. Insights recalculates every month, including before the app.", saved: "Saved.",
+  oneOff: "One-off purchase", oneOffHelp: "Big, rare purchases like a dishwasher. Still counts toward settling up; Insights lists it separately.",
+  oneOffShort: "One-off", yes: "Yes", monthCol: "Month", needsTrend: "See the last 12 months",
+  historyLine: "A monthly summary of your spending from before the app: totals by category and bill, with no stores, notes, or line items.",
+  searchStores: "Search stores", removedStores: "Removed stores", bringBack: "Bring back", nameLabel: "Name", usualCat: "Usual category",
+  mergeAnother: "Merge into another store", removeStore: "Remove store", addBill: "Add bill", activeBills: "Active", retiredBills: "Retired",
+  usualAmount: "Usual amount", usuallyPaidBy: "Usually paid by", retireBill: "Retire bill", retireHelp: "It leaves Pick a bill. Past expenses stay as they are.",
+  profile: "Profile", profileSub: "Profile, Venmo, account", shared: "Shared", sharedNote: "Changes here apply to both of you.", stores: "Stores",
+  yourLook: "Your look", emoji: "Emoji", emojiHelp: "Any single emoji. Use your phone’s emoji keyboard.", useInitial: "Use my initial instead",
+  oneEmoji: "Use one emoji.", emojiSaved: "Emoji saved.", emojiRemoved: "Emoji removed.", color: "Color", colorSaved: "Color saved.",
+  theme: "Theme", themeSystem: "Match phone", themeLight: "Light", themeDark: "Dark", themeSaved: "Theme saved.",
+  gettingPaid: "Getting paid", venmoLabel: "Your Venmo username", account: "Account", emailLabel: "Email",
+  emailNote: "Used only to sign in. Admins can see it in the Firebase console.", changePw: "Change password", save: "Save", off: "Off",
+  reminderOn: "With these settings, the reminder is showing now.", reminderOff: "No reminder right now.",
+  venmoHow: "How the Venmo link works", historyNoneShort: "Not added",
+  viewTitle: "Expense", paidByL: "Paid by", splitL: "Split", dateL: "Date", categoryL: "Category", coversL: "Months covered", noteL: "Note", loggedByL: "Logged by", statusL: "Status", notSettled: "Not settled yet", settledWord: "Settled", billTag: "Bill", oneOffTag: "One-off", close: "Close",
+  settleUp: "Settle up", howWeGot: "How we got this", paidOther: "Paid another way", markPaid: "Mark as paid", closePeriod: "Close this period", yesClose: "Yes, close it",
+  next: "Next", log: "Log expense", reviewTitle: "Look good?", pickBill: "Pick a bill", clear: "Clear", done: "Done", storeDefault: "Store’s default",
+  billsHelp: "Bills are your recurring shared costs, kept separate from everyday expenses. Each one fills in its usual amount. Change it on the keypad if this month’s is different.",
+  logWithBill: "Log it with Pick a bill", addANote: "Add a note",
+  amount: "Amount",
+  bills: "Bills", change: "Change", cancel: "Cancel", back: "Back", enterAmount: "Enter an amount",
+  deleteDigit: "Delete last digit", decimal: "Decimal point", paidBy: "Paid by", you: "You", youLower: "you", someone: "Someone",
+  whereTitle: "Where was it?", store: "Store", storeSearch: "Search, or type a new one", chooseStore: "Choose a store",
+  pickStore: "Pick a store first", typeToAdd: "Type a store name to add it.", chooseCategory: "Choose a category",
+  editAmount: "Edit amount", details: "Details", date: "Date", split: "Split",
+  splitHalf: "50/50", splitFull: "Owed in full", category: "Category", note: "Note", notePh: "What was it? e.g., dog food", covers: "Months covered",
+  coversPh: "e.g. July – September", coversHelp: "For bills that pay for more than one month.",
+  dupTitle: "Looks like a repeat 🔁", dupCancel: "Don’t add", dupOk: "Log anyway", undo: "Undo", edit: "Edit", dismiss: "Dismiss",
+  editTitle: "Edit expense", saveChanges: "Save changes", del: "Delete", delExpense: "Delete this expense", delConfirm: "Tap again to delete",
+  amountLike: "Enter an amount, like 24.99", needStore: "Add where it was from",
+  editGone: "That expense isn’t here anymore. It was deleted or settled on the other phone.",
+  settleUps: "Settle-ups", activityTab: "Activity", noSettles: "No settle-ups yet 🧾",
+  noSettlesBody: "When you mark a balance as paid, it’s saved here with every expense it covered.",
+  showMore: "Show more", activityNote: "Shared by both of you. Entries can’t be edited or deleted.",
+  detailFailed: "Couldn’t load these expenses. Reopen when you’re online.", noExpensesFound: "No expenses found.",
+  halfDifference: "Half the difference", even: "You’re even",
+  emptyTitle: "It’s quiet… too quiet 👀",
+  removed: "Removed.",
+  changesSaved: "Changes saved.",
+  noChanges: "Nothing changed.",
+  reminderTitle: "Settle-up reminder", nudgeTitle: "Settle-up o’clock ⏰", reminderHelp: "This applies to both of you.", reminderSaved: "Reminder saved.", remindAfter: "Remind us after", remindOver: "Or when the balance is over",
+  venmoChanged: "The balance changed. Check it and try again.", alreadySettled: "Already settled up.",
+  venmoAskPay: "Did the Venmo payment go through?", venmoAskRequest: "Did the Venmo request get paid?", venmoYes: "Yes, mark as paid", venmoNo: "Not yet",
+  venmoInvalid: "Use 5–30 letters, numbers, dashes, or underscores", venmoSaved: "Venmo username saved.", venmoRemoved: "Venmo username removed.",
+  checking: "Checking…",
+  billSaved: "Bill saved.", billRetired: "Bill retired.", billBack: "Bill is back.", enterBillAmount: "Enter an amount, like 64.50", noBills: "No active bills.",
+  storeRenamed: "Store renamed.", storesMerged: "Stores merged.", storeRemoved: "Store removed.", storeBack: "Store is back.",
+  categorySaved: "Category saved.", enterName: "Enter a name", pickMerge: "Pick a store to merge into", noStores: "No stores match.",
+  removeHelp: "It disappears from the store picker. Past expenses keep their name, and you can bring it back from the Stores list.",
+  emptyActivity: "Changes to expenses will show up here.",
+  activityError: "Couldn’t load activity. Check the security rules in Firebase.",
+  deleted: "Expense deleted.",
+  settled: "Settled! Fresh slate ✨",
+  offline: "Offline, changes will sync",
+  syncing: "Syncing…",
+  cantChange: "This account can’t make changes. Check the security rules in Firebase.",
+  cantSave: "Couldn’t save that change. Try again.",
+  cantRead: "This account can’t read the data. Check the security rules in Firebase.",
+  resetSent: "Password reset email sent.",
+  resetFailed: "Couldn’t send the email. Try again.",
+};
+
+/* ---------- Profile ---------- */
+export const COLOR_NAMES = { blue: "Blue", orange: "Orange", aqua: "Aqua", magenta: "Magenta", green: "Green", violet: "Violet" };
+export const colorMoved = (partner, colorName) => `${partner} picked this color too, so yours shows as ${colorName} for now.`;
+
+// Settings → Spending history
+export const historyHas = (first, through) => `Insights includes monthly totals from ${monthLabel(first)} through ${monthLabel(through)}, from the old spreadsheet.`;
+export const historyFound = (n, tabs, first, through, total) =>
+  `${n.toLocaleString("en-US")} expenses from ${tabs} settle-ups, ${monthLabel(first)} to ${monthLabel(through)}: ${fmt(total)} in all.`;
+export const historyOneOffs = n => `${n} big, rare purchases are counted as one-offs, like a fence or a dishwasher.`;
+export const historyDropped = (n, month) => `${n} ${n === 1 ? "expense" : "expenses"} from ${monthLabel(month)} on ${n === 1 ? "is" : "are"} left out, because the app already covers that month.`;
+
+// Insights: year view, month jump, bills
+export const yearHead = (year, partial, spent, prev, pct, through) =>
+  `${partial ? `${year} so far, through ${through}` : year}: ${spent} everyday` +
+  (pct == null ? "." : `, ${pct === 0 ? "about the same as" : `${Math.abs(pct)}% ${pct > 0 ? "more than" : "less than"}`} ${partial ? `the same months of ${year - 1}` : year - 1} (${prev}).`);
+export function yearCategoryLine(cat, amount, prevAmount, pct, prevYear) {
+  if (prevAmount == null) return `${cat} ${amount} · none in ${prevYear}`;
+  return Math.abs(pct) < 5 ? `${cat} ${amount} · about the same as ${prevYear}` : `${cat} ${amount} · ${Math.abs(pct)}% ${pct > 0 ? "more" : "less"} than ${prevYear} (${prevAmount})`;
+}
+export function billLine(name, amount, lastMonth, lastYear, lastYearLabel) {
+  const parts = [amount ?? "still to come"];
+  if (lastMonth) parts.push(`last month ${lastMonth}`);
+  if (lastYear) parts.push(`${lastYearLabel} ${lastYear}`);
+  return `${name}: ${parts.join(" · ")}`;
+}
+export const lastMonthName = m => `last ${parseISO(`${m}-01`).toLocaleDateString("en-US", { month: "long" })}`;
+export const settleUpsFound = (n, first, last, total) => `${n} settle-ups from ${first} to ${last}, ${total} in all. Each shows what was paid and settled; the expenses stay in the spreadsheet.`;
+export const settleUpsHas = n => `History has ${n} settle-ups from the spreadsheet.`;
+export const importedSettle = n => `From the old spreadsheet. Its ${n} expense${n === 1 ? "" : "s"} stay there, so only the totals are here.`;
+
+// Insights cards: whole dollars in summaries (cents stay in expense lists), short chips, labelled marks.
+export const fmtRound = c => (c < 0 ? "-" : "") + "$" + Math.round(Math.abs(c) / 100).toLocaleString("en-US");
+export function paceChip(status, diff) {
+  if (status === "early") return "Early days";
+  if (status === "on") return "On track";
+  return `${diff} ${status === "high" ? "over" : "under"} pace`;
+}
+export const usualByDay = day => `usual by the ${nth(day)}`;
+export const usualMonthLabel = amount => `usual month ${amount}`;
+export const vsUsualChip = pct => pct === 0 ? "About usual" : `${Math.abs(pct)}% ${pct > 0 ? "over" : "under"} usual`;
+export const usualIs = amount => `Usual ${amount}`;
+export const billsInLabel = (n, total) => total ? `Bills · ${n} of ${total} in` : "Bills";
+export const billsSoFar = amount => `${amount} so far`;
+export const sparkLabel = "Everyday spending, last 12 months";
+export const changeChip = pct => pct == null ? "New" : pct === 0 ? "Same" : `${pct > 0 ? "+" : "−"}${Math.abs(pct)}%`;
+export const yearLabel = (year, partial, through) => partial ? `${year} so far, through ${through}` : `${year}`;
+export const vsYearChip = (pct, prevYear) => pct == null ? `No ${prevYear} to compare` : pct === 0 ? `Same as ${prevYear}` : `${Math.abs(pct)}% ${pct > 0 ? "more" : "less"} than ${prevYear}`;
+export const prevYearIs = (prevYear, amount, partial) => `${partial ? `Same months of ${prevYear}` : prevYear}: ${amount}`;
+export const dumbbellRow = (cat, now, before, year) => before ? `${cat}: ${now} in ${year}, ${before} in ${year - 1}` : `${cat}: ${now} in ${year}, none in ${year - 1}`;
+export const markPaidAmount = amount => `Mark ${amount} as paid`;
+// The read-only view of an expense
+export const viewOwe = (amount, them) => `${them} owes you ${amount}`;
+export const viewYouOwe = (amount, them) => `You owe ${them} ${amount}`;
+export const loggedBy = (who, date, time) => `${who}, ${date} at ${time}`;
+export const onlyTheyCan = who => `Only ${who} can change or delete this one. Ask ${who} if something’s wrong.`;
+export const settledOn = date => `Settled ${longDate(date)}`;
+// The balance card's one supporting line: how many expenses since the last settle-up, and what each of you paid.
+export function sinceShort(count, lastISO) {
+  const n = `${count} expense${count === 1 ? "" : "s"}`;
+  return lastISO ? `${n} since ${shortDate(lastISO)}` : n;
+}
+export const paidSplit = (mine, them, theirs) => `you paid ${mine}, ${them} paid ${theirs}`;
+export const bucketsSummary = (needs, wants) => `${needs} needs, ${wants} wants`;
+export const historyRange = (first, through) => `${parseISO(`${first}-01`).toLocaleDateString("en-US", { month: "short", year: "numeric" })} – ${parseISO(`${through}-01`).toLocaleDateString("en-US", { month: "short", year: "numeric" })}`;
+export const weekdayDate = s => parseISO(s).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", ...(s.slice(0, 4) !== todayISO().slice(0, 4) ? { year: "numeric" } : {}) });

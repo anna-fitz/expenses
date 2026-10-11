@@ -1,0 +1,145 @@
+import { describe, expect, it } from "vitest";
+import { C, activityDetail, activityLine, settleRowDate, settleRowSub, addNewStore, balanceLine, emptyBody, greeting, nudgeLine, optsSummary, privacySections, savedLine, settleLine, settleSub, settledTitle, SIGNIN_NOTE, splitHelp, storeSub, atLine, categoryDefault, dateLabel, splitLine, storeSelected, todayISO, isABill, settleHero, periodLine, payVenmo, requestVenmo, confirmTitle, confirmBody, COLOR_NAMES, billsCount, daysOpt, reminderSummary, storesCount, theirColor, tooClose, venmoPrivacy, bringBackName, billSub, mergeInto, mergeTitle, removeTitle, retireTitle, storeIsBill, storeTaken, bucketLine, monthLabel, monthShort, oneOffsLine, onTrackLine, pastLine, billsIn, paceLine, lastYearLine, backTo, categoryLine } from "./copy.js";
+
+const N = { p1: "Alex", p2: "Sam" };
+describe("copy", () => {
+  it("words edits in plain words, with You for the reader", () => {
+    const edit = (changes: unknown[], by = "p1") => ({ by, action: "edit", summary: { merchant: "Costco" }, changes });
+    expect(activityLine(edit([]), N, (n: string) => n, "p1")).toBe("You edited Costco");
+    expect(activityLine(edit([], "p2"), N, (n: string) => n, "p1")).toBe("Sam edited Costco");
+    expect(activityDetail(edit([{ field: "oneOff", from: "", to: true }]), N, "p1")).toBe("Marked as a one-off");
+    expect(activityDetail(edit([{ field: "note", from: "", to: "Paper towels" }, { field: "covers", from: "", to: "July – September" }]), N, "p1"))
+      .toBe("Added a note: “Paper towels” · Added months covered: July – September");
+    expect(activityDetail(edit([{ field: "amountCents", from: 4512, to: 2500 }, { field: "payer", from: "p1", to: "p2" }, { field: "split", from: "half", to: "full" }, { field: "note", from: "x", to: "" }]), N, "p1"))
+      .toBe("Amount $45.12 → $25.00 · Now paid by Sam · Now owed in full · and 1 more");
+    expect(activityDetail({ by: "p1", action: "add", summary: {} }, N, "p1")).toBe("");
+  });
+  it("words settle-ups led by the date, with You", () => {
+    expect(settleRowDate({ date: "2026-10-01" })).toBe("Oct 1");
+    expect(settleRowSub({ amountCents: 152127, from: "p1", to: "p2", count: 71 }, N, "p1")).toBe("You paid Sam · 71 expenses");
+    expect(settleRowSub({ amountCents: 500, from: "p2", to: "p1", count: 1, method: "venmo" }, N, "p1")).toBe("Sam paid you · 1 expense · Venmo");
+    expect(settleRowSub({ amountCents: 0, count: 3 }, N, "p1")).toBe("Closed even · 3 expenses");
+    expect(activityLine({ by: "p1", action: "settle", summary: { amountCents: 69022, from: "p1", to: "p2" } }, N, (n: string) => n, "p1")).toBe("You paid Sam $690.22 to settle up");
+  });
+  it("words Insights", () => {
+    expect(onTrackLine("$600.00", "$580.65")).toBe("$600.00 so far · usually $580.65 by now");
+    expect([billsIn(2, 6, ["Electricity", "Water", "Gardener", "Pool service"], "$80.00"), billsIn(3, 6, ["Electricity", "Water", "Gardener"], "$80.00"), billsIn(2, 2, [], "$90.00"), billsIn(1, 3, ["Water", "Gas bill"], "$1.00")]).toEqual([
+      "Bills: 2 of 6 in so far", "Bills: 3 of 6 in · Electricity, Water and Gardener still to come", "Bills: all 2 in · $90.00", "Bills: 1 of 3 in · Water and Gas bill still to come"]);
+    expect([paceLine("low", "$45.00", "$448.25", 11), paceLine("high", "$900.00", "$12.00", 22), paceLine("on", "$5.00", "$0.00", 3), paceLine("early", "$5.00", "$0.00", 2)]).toEqual([
+      "$45.00 so far, $448.25 less than you usually spend by the 11th", "$900.00 so far, $12.00 more than you usually spend by the 22nd",
+      "$5.00 so far, about what you usually spend by the 3rd", "$5.00 so far. It’s too early in the month to compare."]);
+    expect([lastYearLine("2025-10", "$1,590.00"), backTo("2026-10")]).toEqual(["Last October: $1,590.00 everyday", "Back to October 2026"]);
+    expect([categoryLine("Pets", "$96.00", "$150.00", -36), categoryLine("Groceries", "$600.00", "$620.00", -3), categoryLine("Coffee", "$9.00", 0, 0), categoryLine("Coffee", "$9.00", null, 0)]).toEqual([
+      "Pets $96.00 · 36% less than usual ($150.00)", "Groceries $600.00 · about usual", "Coffee $9.00 · usually nothing", "Coffee $9.00"]);
+    expect([oneOffsLine("$1,508.49", 1), oneOffsLine("$2.00", 2)]).toEqual(["One-offs: $1,508.49 · 1 purchase", "One-offs: $2.00 · 2 purchases"]);
+    expect([pastLine("$810.00", "$900.00", -10), pastLine("$9.00", "$9.00", 0), pastLine("$1.00", "$1.00", 12)]).toEqual([
+      "10% less than usual on everyday spending: $810.00, against a usual $900.00.", "About usual on everyday spending: $9.00, against a usual $9.00.",
+      "12% more than usual on everyday spending: $1.00, against a usual $1.00."]);
+    expect([bucketLine("Wants", "$200.00", 7, 19), bucketLine("Wants", "$200.00", 7, null)]).toEqual(["Wants $200.00 · 7% of the month, usually 19%", "Wants $200.00 · 7% of the month"]);
+    expect([monthLabel("2026-08"), monthShort("2026-08")]).toEqual(["August 2026", "Aug"]);
+    expect(C.historyLine).toBe("A monthly summary of your spending from before the app: totals by category and bill, with no stores, notes, or line items.");
+  });
+  it("words stores and bills", () => {
+    expect(storeIsBill("Water")).toBe("Water is a bill. Give the store a different name.");
+    expect(storeTaken("Costco")).toBe("There’s already a store called Costco. Give the bill a different name.");
+    expect([mergeInto("Costco"), mergeTitle("TJs"), removeTitle("Aldi"), retireTitle("Water"), bringBackName("Aldi")])
+      .toEqual(["Merge into Costco", "Merge TJs into…", "Remove Aldi?", "Retire Water?", "Bring back Aldi"]);
+    expect(billSub("$280.00", "Sam")).toBe("Usually $280.00 · Sam pays");
+    expect([C.searchStores, C.removedStores, C.bringBack, C.nameLabel, C.usualCat, C.mergeAnother, C.removeStore, C.addBill,
+      C.activeBills, C.retiredBills, C.usualAmount, C.usuallyPaidBy, C.retireBill, C.retireHelp]).toEqual([
+      "Search stores", "Removed stores", "Bring back", "Name", "Usual category", "Merge into another store", "Remove store", "Add bill",
+      "Active", "Retired", "Usual amount", "Usually paid by", "Retire bill", "It leaves Pick a bill. Past expenses stay as they are."]);
+  });
+  it("words Profile and Settings", () => {
+    expect([storesCount(17), storesCount(1), billsCount(6), billsCount(1)]).toEqual(["17 stores", "1 store", "6 bills", "1 bill"]);
+    expect([reminderSummary(60, 50000), reminderSummary(60, 0), reminderSummary(0, 100000), reminderSummary(0, 0)])
+      .toEqual(["After 60 days or over $500", "After 60 days", "Over $1,000", "Off"]);
+    expect([daysOpt(30), theirColor("Sam"), tooClose("Sam")]).toEqual(["30 days", "Sam’s color", "Too close to Sam’s"]);
+    expect(COLOR_NAMES).toEqual({ blue: "Blue", orange: "Orange", aqua: "Aqua", magenta: "Magenta", green: "Green", violet: "Violet" });
+    const v = venmoPrivacy("Sam");
+    expect(v.code).toBe("venmo.com/{username}?txn=pay&amount=…&note=…");
+    expect(v.before + v.code + v.after).toBe("Stored as text in your profile in Firebase, readable only by your account and Sam’s. The app uses it for one thing: "
+      + "building a Venmo link, venmo.com/{username}?txn=pay&amount=…&note=…, that opens Venmo with the payment filled in. "
+      + "It never signs in to Venmo, and it can’t see your Venmo account, balance, or payments.");
+    expect(/\p{Extended_Pictographic}/u.test(v.before + v.after + C.emailNote)).toBe(false);
+  });
+  it("explains the Venmo mechanism on the privacy page too", () =>
+    expect(privacySections("Sam").find((s) => s.id === "never")?.body[2]).toBe(
+      "Your Venmo account. The app only builds a link (venmo.com/{username}?txn=pay&amount=…) that opens Venmo with the payment filled in. "
+      + "It never signs in to Venmo, and can’t see your account, balance, or whether a payment went through."));
+  it("greets by time of day", () =>
+    expect([4, 5, 12, 17].map((h) => greeting("Alex", h))).toEqual(["Evening, Alex 🌙", "Morning, Alex ☀️", "Afternoon, Alex 👋", "Evening, Alex 🌙"]));
+  it("states the balance from your side, generically", () => {
+    expect(balanceLine(500, "p1", "p1", "p2", N)).toEqual({ who: "You owe Sam", sub: "" });
+    expect(balanceLine(500, "p2", "p1", "p2", N)).toEqual({ who: "Alex owes you", sub: "" });
+    expect(balanceLine(-500, "p1", "p1", "p2", N)).toEqual({ who: "Sam owes you", sub: "" });
+    expect(balanceLine(0, "p1", "p1", "p2", N).sub).toBe("Perfectly balanced, as all things should be ⚖️");
+  });
+  it("uses the new voice", () => {
+    expect(savedLine("$45.12", "Costco", null)).toBe("Logged ✅ $45.12 at Costco");
+    expect(emptyBody("Sam")).toBe("Add the first expense and it pops up on Sam’s phone instantly.");
+  });
+  it("keeps settle and activity sentences", () =>
+    expect(activityLine({ by: "p2", action: "settle", summary: { amountCents: 69022, from: "p1", to: "p2" } }, N)).toBe("Sam settled up: Alex paid Sam $690.22"));
+  it("words the reminder", () => expect(nudgeLine(61, "$500", false)).toBe("It’s been 61 days and the balance is over $500."));
+  it("keeps security copy plain (no emoji)", () => {
+    const text = [SIGNIN_NOTE, ...privacySections("Sam").flatMap((s) => [s.title, ...s.body])].join(" ");
+    expect(/\p{Extended_Pictographic}/u.test(text)).toBe(false);
+    expect(SIGNIN_NOTE).toBe("Only the two people this app is for can sign in. Passwords are stored scrambled. Nobody can read them.");
+  });
+  it("covers every privacy section", () =>
+    expect(privacySections("Sam").map((s) => s.id)).toEqual(["where", "who", "never", "phone", "code", "log"]));
+  it("words the add flow", () => {
+    expect(addNewStore("Blue Bottle")).toBe("Add Blue Bottle as a new store");
+    expect(optsSummary("Today", "half", "")).toBe("Today · split 50/50 · usual category");
+    expect(optsSummary("Sep 1", "full", "Coffee")).toBe("Sep 1 · owed in full · Coffee");
+    expect(splitHelp("Sam", "half", 4513)).toBe("Sam owes $22.57.");
+    expect(splitHelp("Sam", "full", 4513)).toBe("Sam pays back the whole $45.13.");
+    expect(storeSub("Groceries", "TJs")).toBe("Groceries · also called TJs");
+    expect(storeSub("", null)).toBe("");
+  });
+  it("words settle-ups", () => {
+    expect(settleLine({ amountCents: 37744, from: "p1", to: "p2" }, N)).toBe("Alex paid Sam $377.44");
+    expect(settleLine({ amountCents: 0, from: null, to: null }, N)).toBe("Closed even");
+    expect(settleSub({ date: "2026-09-30", count: 2, method: "venmo" })).toBe("Sep 30, 2026, 2 expenses, via Venmo");
+    expect(settleSub({ date: "2026-08-31", count: 1 })).toBe("Aug 31, 2026, 1 expense");
+    expect(settledTitle("2026-09-30")).toBe("Settled Sep 30, 2026");
+  });
+  it("keeps the activity note and edit-gone message plain", () => {
+    expect([C.activityNote, C.editGone].every((t) => typeof t === "string" && t.length > 0)).toBe(true);
+    expect(/\p{Extended_Pictographic}/u.test(C.activityNote + C.editGone)).toBe(false);
+  });
+  it("words the redesigned add flow", () => {
+    expect(storeSelected("Costco")).toBe("Costco selected");
+    expect(categoryDefault("Groceries", "Costco")).toBe("Groceries (default for Costco)");
+    expect([atLine("Costco", false), atLine("Water", true)]).toEqual(["at Costco", "for Water"]);
+    expect(splitLine("Sam", "half", 4513)).toBe("50/50, Sam owes $22.57");
+    expect(splitLine("Sam", "full", 4513)).toBe("Owed in full");
+    expect([dateLabel(todayISO()), dateLabel("2020-09-01")]).toEqual(["Today", "Sep 1"]);
+    expect([C.next, C.log, C.reviewTitle, C.pickBill, C.clear, C.done, C.storeDefault])
+      .toEqual(["Next", "Log expense", "Look good?", "Pick a bill", "Clear", "Done", "Store’s default"]);
+  });
+  it("explains bills, and points a typed bill name to them", () => {
+    expect(C.billsHelp).toBe("Bills are your recurring shared costs, kept separate from everyday expenses. Each one fills in its usual amount. Change it on the keypad if this month’s is different.");
+    expect(isABill("Water")).toBe("Water is a bill.");
+    expect([C.logWithBill, C.addANote]).toEqual(["Log it with Pick a bill", "Add a note"]);
+  });
+  it("words settling up", () => {
+    const N = { p1: "Alex", p2: "Sam" };
+    expect([settleHero(500, "p1", "p1", "p2", N), settleHero(500, "p2", "p1", "p2", N), settleHero(0, "p1", "p1", "p2", N)])
+      .toEqual(["You owe Sam", "Alex owes you", "You’re even ⚖️"]);
+    expect([periodLine(2, "2026-09-29", "2026-09-30"), periodLine(1, "2026-09-29", "2026-09-29")]).toEqual(["2 expenses, Sep 29 – Sep 30", "1 expense, Sep 29"]);
+    expect([payVenmo("Sam"), requestVenmo("Sam")]).toEqual(["Pay Sam on Venmo", "Request from Sam on Venmo"]);
+    expect([confirmTitle("pay", "Sam", "$377.44"), confirmTitle("charge", "Sam", "$377.44"), confirmTitle("even", "Sam", "$0.00")])
+      .toEqual(["Did you pay Sam $377.44?", "Did Sam pay you $377.44?", "Close this period?"]);
+    expect([confirmBody(12), confirmBody(1)]).toEqual([
+      "This starts a fresh balance. All 12 expenses move to History, where you can always see them.",
+      "This starts a fresh balance. The 1 expense moves to History, where you can always see it."]);
+    expect([C.settleUp, C.howWeGot, C.paidOther, C.closePeriod, C.yesClose]).toEqual(["Settle up", "How we got this", "Paid another way", "Close this period", "Yes, close it"]);
+  });
+  it("words installing and the offline app", () => {
+    expect([C.installTitle, C.installIos, C.installOther]).toEqual(["Add Expenses to your Home Screen 📲",
+      "Tap Share, then Add to Home Screen. It opens full screen, like an app.", "Open the browser menu, then Install app or Add to Home screen."]);
+    expect(privacySections("Sam").find((s) => s.id === "phone")?.body).toContain("The app itself, so it opens without a connection. It holds no personal data.");
+  });
+});

@@ -40,8 +40,11 @@ It costs nothing to run and doesn't use any paid services.
 
 ## Updating the app
 
-1. Change the files and run the tests: `python test/run.py`. They need `pip install playwright axe-playwright-python`, `python -m playwright install chromium`, and a local `test/accounts.local.json` with the two sign-in emails.
-2. If you changed any of the files above, raise the version number in the `CACHE` line of `sw.js` so phones download the update.
-3. Commit and push to `main`. GitHub Pages republishes in about a minute.
+The app is the React version in `web/`. The files at the repository root are the previous app, kept so it can be brought back.
+
+1. Change the files in `web/` and run the checks there: `npm ci`, then `npx vitest run` and `npm run build` (the build fails if the app grows past its size budget). The browser suites run with `python test/run_web.py`. They need `pip install playwright axe-playwright-python`, `python -m playwright install chromium`, and a local `test/accounts.local.json` with the two sign-in emails.
+2. Commit and push to `main`. The "Deploy web app" workflow builds `web/` and publishes it to GitHub Pages in a couple of minutes. Phones pick up the update the next time the app is quiet.
+
+To go back to the previous app, set Settings → Pages → Source to "Deploy from a branch" (`main`, `/ (root)`).
 
 The database security rules aren't in this repository because they contain sign-in email addresses. If an update changes them, publish the new rules in Firebase before pushing the app.
