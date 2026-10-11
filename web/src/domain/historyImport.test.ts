@@ -75,7 +75,7 @@ describe("the summary", () => {
   });
   it("totals by month, category and bill", () => {
     const p = buildHistory([t], null);
-    expect(p.history).toEqual({ through: "2025-03", months: {
+    expect(p.history).toEqual({ through: "2025-03", endsOn: "2025-03-01", months: {
       "2025-01": { cats: { Groceries: 5000 }, bills: { electricity: 10000 }, oneOffs: {}, oneOffCount: 0 },
       "2025-02": { cats: {}, bills: {}, oneOffs: { "Home & household": 200000 }, oneOffCount: 1 },
       "2025-03": { cats: { Groceries: 2000 }, bills: {}, oneOffs: {}, oneOffCount: 0 } } });

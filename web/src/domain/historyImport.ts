@@ -115,7 +115,7 @@ export function buildHistory(sheets: Sheet[], appStart: string | null): Preview 
     total += x.cents;
   }
   const keys = Object.keys(months).sort();
-  return { history: { through, months }, items: items.length, tabs: sheets.filter((s) => itemsOf(s).length).length, oneOffs, skipped, dropped, other, first: keys[0] || "", through, totalCents: total };
+  return { history: { through, months, endsOn: items.map((x) => x.date).filter((d) => monthOf(d) <= through).sort().pop() || "" }, items: items.length, tabs: sheets.filter((s) => itemsOf(s).length).length, oneOffs, skipped, dropped, other, first: keys[0] || "", through, totalCents: total };
 }
 
 // One tab's settle-up. In the sheet each person's list is what they paid; under its total sits the other person's half

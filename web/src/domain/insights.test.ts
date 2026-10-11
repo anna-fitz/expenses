@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Expense } from "@/data/types";
-import { EMPTY, bucketOf, categoryRows, daysIn, figuresFor, figuresFromExpenses, figuresFromHistory, median, pace, pctOf, shiftMonth, usual, usualByCategory, usualMix, type HistoryDoc } from "./insights";
+import { EMPTY, appItemsFor, bucketOf, categoryRows, daysIn, figuresFor, figuresFromExpenses, figuresFromHistory, median, pace, pctOf, shiftMonth, usual, usualByCategory, usualMix, type HistoryDoc } from "./insights";
 
 const e = (o: Partial<Expense>): Expense => ({ id: "x", amountCents: 0, payer: "p1", merchant: "Costco", category: "Groceries", date: "2026-08-05", split: "half", settled: false, ...o });
 const H: HistoryDoc = { through: "2026-07", months: {
@@ -23,12 +23,18 @@ describe("a month's figures", () => {
   it("reads a summary month the same way", () =>
     expect(figuresFromHistory(H.months["2026-07"], {})).toMatchObject({ everyday: 81000, bills: 64555, oneOffs: 290000, oneOffCount: 1,
       buckets: { bill: 64555, need: 51000 + 290000, want: 30000 } }));
-  it("uses the summary through its last month, and the app after — never both", () => {
-    const app = [e({ amountCents: 999, date: "2026-07-31" }), e({ amountCents: 500, date: "2026-08-02" })];
+  it("uses the summary through its last month, and the app after — never both, except what was logged after the summary ended", () => {
+    const app = [e({ amountCents: 999, date: "2026-07-31", createdAt: Date.parse("2026-07-31T10:00:00") }), e({ amountCents: 500, date: "2026-08-02" })];
     expect(figuresFor("2026-07", app, H, {})?.everyday).toBe(81000);
     expect(figuresFor("2026-08", app, H, {})?.everyday).toBe(500);
     expect(figuresFor("2026-05", app, H, {})).toBeNull();
     expect(figuresFor("2026-09", app, H, {})).toBeNull();
+  });
+  it("counts a bill dated back into a summary month when it was logged after the summary ended", () => {
+    const late = e({ amountCents: 28316, date: "2026-07-28", billId: "water", category: "Utilities", createdAt: Date.parse("2026-08-10T09:00:00") });
+    expect(figuresFor("2026-07", [late], H, {})).toMatchObject({ everyday: 81000, bills: 64555 + 28316, billsBy: { electricity: 64555, water: 28316 } });
+    expect(appItemsFor("2026-07", [late], H)).toEqual([late]);
+    expect(appItemsFor("2026-07", [late], { ...H, endsOn: "2026-08-15" })).toEqual([]);
   });
 });
 describe("usual, pace, and mix", () => {

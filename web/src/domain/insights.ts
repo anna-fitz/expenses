@@ -13,7 +13,8 @@ export const bucketOf = (category: string, map: Partial<Record<string, Mapped>> 
 
 // The pre-app monthly summary (config/history): totals only — no stores, notes, dates or payers.
 export type HistoryMonth = { cats: Record<string, number>; bills: Record<string, number>; oneOffs?: Record<string, number>; oneOffCount?: number };
-export type HistoryDoc = { through: string; months: Record<string, HistoryMonth> };
+// `endsOn`: the spreadsheet's last date (older imports don't have it; the end of `through` stands in).
+export type HistoryDoc = { through: string; months: Record<string, HistoryMonth>; endsOn?: string };
 export type Figures = {
   everyday: number; bills: number; billsBy: Record<string, number>; byCategory: Record<string, number>;
   oneOffs: number; oneOffCount: number; oneOffBy: Record<string, number>; buckets: Record<Bucket, number>; total: number;
@@ -53,11 +54,20 @@ export const daysIn = (m: string) => { const [y, mo] = m.split("-").map(Number);
 // Tests pin "today" with window.__today so results never depend on the real date.
 export const today = (): string => (globalThis as { __today?: string }).__today || todayISO();
 
-// A month on or before the summary's last month comes only from the summary; later months only from the app. Never both.
-export function figuresFor(m: string, app: Expense[], history: HistoryDoc | null, map: Partial<Record<string, Mapped>>): Figures | null {
-  if (history && m <= history.through) { const h = history.months[m]; return h ? figuresFromHistory(h, map) : null; }
+// The moment the summary stops: anything logged in the app after it can't be in the spreadsheet.
+export const summaryEnd = (h: HistoryDoc) => Date.parse(`${h.endsOn || `${h.through}-${String(daysIn(h.through)).padStart(2, "0")}`}T23:59:59`);
+// The app expenses that count in month m. After the summary, all of them. In a summary month, only ones logged after the
+// spreadsheet ended (a bill dated back to the month it covers): anything older might already be in the summary.
+export function appItemsFor(m: string, app: Expense[], history: HistoryDoc | null): Expense[] {
   const list = app.filter((x) => monthOf(x.date) === m);
-  return list.length ? figuresFromExpenses(list, map) : null;
+  if (!history || m > history.through) return list;
+  const end = summaryEnd(history);
+  return list.filter((x) => (x.createdAt || 0) > end);
+}
+// A summary month is the summary plus anything logged late for it; later months come from the app.
+export function figuresFor(m: string, app: Expense[], history: HistoryDoc | null, map: Partial<Record<string, Mapped>>): Figures | null {
+  const list = appItemsFor(m, app, history), h = history && m <= history.through ? history.months[m] : null;
+  return sumFigures([h ? figuresFromHistory(h, map) : null, list.length ? figuresFromExpenses(list, map) : null]);
 }
 export function median(xs: number[]): number {
   const s = [...xs].sort((a, b) => a - b), n = s.length;
