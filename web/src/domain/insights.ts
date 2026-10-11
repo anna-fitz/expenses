@@ -16,9 +16,9 @@ export type HistoryMonth = { cats: Record<string, number>; bills: Record<string,
 export type HistoryDoc = { through: string; months: Record<string, HistoryMonth> };
 export type Figures = {
   everyday: number; bills: number; billsBy: Record<string, number>; byCategory: Record<string, number>;
-  oneOffs: number; oneOffCount: number; buckets: Record<Bucket, number>; total: number;
+  oneOffs: number; oneOffCount: number; oneOffBy: Record<string, number>; buckets: Record<Bucket, number>; total: number;
 };
-export const EMPTY: Figures = { everyday: 0, bills: 0, billsBy: {}, byCategory: {}, oneOffs: 0, oneOffCount: 0, buckets: { bill: 0, need: 0, want: 0 }, total: 0 };
+export const EMPTY: Figures = { everyday: 0, bills: 0, billsBy: {}, byCategory: {}, oneOffs: 0, oneOffCount: 0, oneOffBy: {}, buckets: { bill: 0, need: 0, want: 0 }, total: 0 };
 
 const sum = (o: Record<string, number>) => Object.values(o).reduce((s, v) => s + v, 0);
 const add = (o: Record<string, number>, k: string, v: number) => { o[k] = (o[k] || 0) + v; };
@@ -28,7 +28,7 @@ function finish(byCategory: Record<string, number>, billsBy: Record<string, numb
   const everyday = sum(byCategory), bills = sum(billsBy), oneOffs = sum(oneOffBy), buckets = { bill: bills, need: 0, want: 0 };
   for (const [c, v] of Object.entries(byCategory)) buckets[bucketOf(c, map)] += v;
   for (const [c, v] of Object.entries(oneOffBy)) buckets[bucketOf(c, map)] += v;
-  return { everyday, bills, billsBy, byCategory, oneOffs, oneOffCount, buckets, total: everyday + bills + oneOffs };
+  return { everyday, bills, billsBy, byCategory, oneOffs, oneOffCount, oneOffBy, buckets, total: everyday + bills + oneOffs };
 }
 export function figuresFromExpenses(list: Expense[], map: Partial<Record<string, Mapped>>): Figures {
   const byCategory: Record<string, number> = {}, billsBy: Record<string, number> = {}, oneOffBy: Record<string, number> = {};
@@ -100,3 +100,26 @@ export function categoryRows(m: string, get: (k: string) => Figures | null): Cat
     return { category: c, cents, usual: us, pct: us ? Math.round(((cents - us) / us) * 100) : null };
   }).sort((a, b) => b.cents - a.cents);
 }
+
+// Several months added together (a year, or part of one). Null when none of them has data.
+export function sumFigures(list: (Figures | null)[]): Figures | null {
+  const fs = list.filter((f): f is Figures => !!f);
+  if (!fs.length) return null;
+  const merge = (pick: (f: Figures) => Record<string, number>) => {
+    const o: Record<string, number> = {};
+    for (const f of fs) for (const [k, v] of Object.entries(pick(f))) o[k] = (o[k] || 0) + v;
+    return o;
+  };
+  const n = (pick: (f: Figures) => number) => fs.reduce((s, f) => s + pick(f), 0);
+  return {
+    everyday: n((f) => f.everyday), bills: n((f) => f.bills), billsBy: merge((f) => f.billsBy), byCategory: merge((f) => f.byCategory),
+    oneOffs: n((f) => f.oneOffs), oneOffCount: n((f) => f.oneOffCount), oneOffBy: merge((f) => f.oneOffBy),
+    buckets: { bill: n((f) => f.buckets.bill), need: n((f) => f.buckets.need), want: n((f) => f.buckets.want) }, total: n((f) => f.total),
+  };
+}
+// A year up to `upTo` (this month, for the current year), and the same months of the year before, so a part year compares fairly.
+export function yearFigures(year: number, upTo: string, get: (k: string) => Figures | null) {
+  const months = Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, "0")}`).filter((m) => m <= upTo);
+  return { months, f: sumFigures(months.map(get)), prev: sumFigures(months.map((m) => get(shiftMonth(m, -12)))) };
+}
+export const pctChange = (now: number, before: number) => (before ? Math.round(((now - before) / before) * 100) : null);

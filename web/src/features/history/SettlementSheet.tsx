@@ -7,18 +7,20 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useData } from "@/data/data";
 import type { Expense } from "@/data/types";
 import { settledExpenses } from "@/data/writes";
-import { C, settledTitle } from "@/domain/copy.js";
+import { C, importedSettle, settledTitle } from "@/domain/copy.js";
 import { settleRows, sortExpenses } from "@/domain/money";
 import { cn } from "@/lib/utils";
 
 export function SettlementSheet({ id }: { id: string }) {
   const { settlements, people } = useData(), s = settlements.find((x) => x.id === id);
   const [list, setList] = useState<Expense[] | null>(null), [failed, setFailed] = useState(false);
+  const imported = !!s?.imported;
   useEffect(() => {
+    if (imported) return;   // the spreadsheet's expenses were never in the app
     let live = true;
     settledExpenses(id).then((l) => { if (live) setList(sortExpenses(l)); }, () => { if (live) setFailed(true); });
     return () => { live = false; };
-  }, [id]);
+  }, [id, imported]);
   const close = () => closeSheet("#/history");
   if (!s) return null;   // settle-ups still loading, or an unknown id: History stays on screen
   return (
@@ -32,7 +34,8 @@ export function SettlementSheet({ id }: { id: string }) {
         ))}
       </dl>
       <div id="d-list">
-        {failed ? <p role="alert" className="text-caption text-destructive">{C.detailFailed}</p>
+        {imported ? <p id="d-imported" className="text-muted-foreground">{importedSettle(Number(s.count) || 0)}</p>
+          : failed ? <p role="alert" className="text-caption text-destructive">{C.detailFailed}</p>
           : !list ? <Skeleton className="h-32 rounded-xl" />
           : !list.length ? <p className="text-muted-foreground">{C.noExpensesFound}</p>
           : <ul className="divide-y overflow-hidden rounded-xl border bg-card">{list.map((e) => <ExpenseRow key={e.id} e={e} />)}</ul>}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildHistory, itemsOf, sortItem, type Item } from "./historyImport";
+import { buildHistory, itemsOf, settleUpsOf, sortItem, type Item } from "./historyImport";
 import { serialToISO, type Sheet } from "./xlsx";
 
 // Made-up tabs in the old spreadsheet's two layouts. Never real data.
@@ -88,4 +88,27 @@ describe("the summary", () => {
     expect(p.dropped).toBe(1);
   });
   it("spreadsheet day numbers", () => expect(serialToISO(46234)).toBe("2026-07-31"));
+});
+
+describe("settle-ups", () => {
+  const f = (v: string | number, f: string) => ({ v: String(v), f });
+  const labelled = tab("a", {
+    A2: v("Electricity"), B2: v(D("2025-01-20")), C2: v(100), E2: v("Ralphs"), F2: v(D("2025-01-03")), G2: v(40),
+    B9: v("Total"), C9: f(100, "SUM(C2:C8)"), F9: v("Total"), G9: f(40, "SUM(G2:G8)"),
+    B10: v("Bre's Half"), C10: f(50, "C9/2"), F10: v("Kyle Half"), G10: f(35, "(G9/2) + 15"),
+    D12: v("Total owed"), E12: f(15, "C10-G10"),
+  });
+  // Labelled only "Split": takes its sides from the tab before. A stale copied pair lower down is ignored.
+  const split = tab("b", {
+    A2: v("Internet"), B2: v(D("2025-02-20")), C2: v(80), E2: v("Costco"), F2: v(D("2025-02-03")), G2: v(200),
+    C9: f(80, "SUM(C2:C8)"), G9: f(200, "SUM(G2:G8)"), B10: v("Split"), C10: f(40, "C9/2"), F10: v("Split"), G10: f(100, "G9/2"),
+    E12: f(-60, "MINUS(C10, G10)"),
+    C40: f(999, "SUM(C2:C30)"), B41: v("Bre's Split"), C41: f(499.5, "C40/2"), E43: f(499.5, "C41-G41"), G40: f(0, "SUM(G2:G30)"), F41: v("Kyle's Split"), G41: f(0, "G40/2"),
+  });
+  it("who paid what, and who settled with whom", () => {
+    expect(settleUpsOf([labelled, split])).toEqual([
+      { tab: "a", date: "2025-01-20", periodStart: "2025-01-03", periodEnd: "2025-01-20", count: 2, paid: { bre: 4000, kyle: 10000 }, from: "bre", amountCents: 1500 },
+      { tab: "b", date: "2025-02-20", periodStart: "2025-02-03", periodEnd: "2025-02-20", count: 2, paid: { bre: 20000, kyle: 8000 }, from: "kyle", amountCents: 6000 },
+    ]);
+  });
 });

@@ -5,7 +5,7 @@ import { serialToISO, type Sheet } from "./xlsx";
 // Turns the old settle-up spreadsheet (one tab per settle-up, a "place / date / amount" list per person, a SUM under each)
 // into the pre-app monthly summary Insights reads from config/history. Only totals are kept: no stores, notes or payers.
 // `fuelTab`: the tab lists the gas bill by month ("Gas (July)"), so a plain "Gas" there is fuel. Elsewhere plain "Gas" is the bill.
-export type Item = { name: string; date: string; cents: number; fuelTab: boolean };
+export type Item = { name: string; date: string; cents: number; fuelTab: boolean; col?: string };
 export type Sorted = { kind: "bill"; billId: string } | { kind: "spend"; category: string; oneOff: boolean } | { kind: "skip" };
 
 const shift = (c: string, n: number) => String.fromCharCode(c.charCodeAt(0) + n);   // single-letter columns are all the sheet uses
@@ -31,7 +31,7 @@ export function itemsOf(sheet: Sheet): Item[] {
       const cell = sheet.cells[amt + r], cents = Math.round(parseFloat(cell?.v ?? "") * 100);
       if (/[A-Z]+\d+/i.test(cell?.f || "")) continue;   // a total or a half worked out from other cells, not an expense
       if (!name || !Number.isFinite(cents) || cents === 0 || /^(place|total)$/i.test(name)) continue;
-      raw.push({ name, date: /^\d+(\.\d+)?$/.test(d) ? serialToISO(+d) : d, cents });
+      raw.push({ name, date: /^\d+(\.\d+)?$/.test(d) ? serialToISO(+d) : d, cents, col: amt });
     }
   }
   // Text dates ("7/14 - 9/28") use the month typed, in the tab's year. Missing dates and typos (a 2016 date in a 2020 tab) use the tab's middle date.
@@ -116,4 +116,70 @@ export function buildHistory(sheets: Sheet[], appStart: string | null): Preview 
   }
   const keys = Object.keys(months).sort();
   return { history: { through, months }, items: items.length, tabs: sheets.filter((s) => itemsOf(s).length).length, oneOffs, skipped, dropped, other, first: keys[0] || "", through, totalCents: total };
+}
+
+// One tab's settle-up. In the sheet each person's list is what they paid; under its total sits the other person's half
+// ("Bre Owes", "Kyle's Half"), and a last cell takes one half from the other. Names are the sheet's own: "bre" and "kyle".
+export type SheetPerson = "bre" | "kyle";
+export type OldSettleUp = { tab: string; date: string; periodStart: string; periodEnd: string; count: number;
+  paid: Record<SheetPerson, number>; from: SheetPerson | null; amountCents: number };
+const whoIn = (s: string): SheetPerson | null => (/\bbre/i.test(s) ? "bre" : /\bkyle/i.test(s) ? "kyle" : null);
+const colOfRef = (ref: string) => ref.match(/^[A-Z]+/)![0];
+const leftOf = (ref: string) => { const c = colOfRef(ref); return String.fromCharCode(c.charCodeAt(0) - 1) + ref.slice(c.length); };
+// "=C46-G46", "=(D13-H17)" or "=MINUS(C46, G46)": the two cells, first minus second.
+function subtraction(f?: string): [string, string] | null {
+  const s = (f || "").replace(/\s/g, "").toUpperCase(), m = s.match(/^\(?([A-Z]+\d+)-([A-Z]+\d+)\)?$/) || s.match(/^MINUS\(([A-Z]+\d+),([A-Z]+\d+)\)$/);
+  return m ? [m[1], m[2]] : null;
+}
+
+// `leftOwes`: who owed the half under the left-hand list in the last tab that said so, for tabs labelled only "Split".
+function settleUpOf(sheet: Sheet, leftOwes: SheetPerson): { s: OldSettleUp; leftOwes: SheetPerson } | null {
+  const items = itemsOf(sheet);
+  if (!items.length) return null;
+  // Each half: a cell worked out from a total ("=C44/2", "=(J14/2) + 15", "=(H16)/2"). `col` is the list the total adds up.
+  const halves: { ref: string; owes: SheetPerson | null; col: string; cents: number }[] = [];
+  for (const [ref, c] of Object.entries(sheet.cells)) {
+    const m = c.f?.match(/^\(*([A-Z])(\d+)\)*\/2\b/i), total = m ? sheet.cells[`${m[1].toUpperCase()}${m[2]}`]?.f?.match(/^SUM\(([A-Z])\d+:\1\d+\)$/i) : null;
+    if (total) halves.push({ ref, owes: whoIn(sheet.cells[leftOf(ref)]?.v || ""), col: total[1].toUpperCase(), cents: Math.round(parseFloat(c.v) * 100) });
+  }
+  // A tab copied forward can keep an older pair of halves lower down: take the pair the highest subtraction uses.
+  if (halves.length > 2) {
+    const subs = Object.entries(sheet.cells).map(([ref, c]) => ({ row: +ref.slice(colOfRef(ref).length), refs: subtraction(c.f) }))
+      .filter((x) => x.refs).sort((a, b) => a.row - b.row);
+    const pick = subs.map((x) => halves.filter((h) => x.refs!.includes(h.ref))).find((p) => p.length === 2);
+    if (!pick) return null;
+    halves.splice(0, halves.length, ...pick);
+  }
+  if (halves.length !== 2) return null;
+  halves.sort((a, b) => a.col.localeCompare(b.col));
+  const [l, r] = halves;
+  l.owes ||= r.owes ? (r.owes === "bre" ? "kyle" : "bre") : leftOwes;
+  r.owes ||= l.owes === "bre" ? "kyle" : "bre";
+  if (l.owes === r.owes) return null;
+  const bre = l.owes === "bre" ? l : r, kyle = bre === l ? r : l;
+  // Bre's half sits under what Kyle paid, and the other way round.
+  const sum = (col: string) => items.filter((x) => x.col === col).reduce((s, x) => s + x.cents, 0);
+  // What was actually settled: the sheet's subtraction of one half from the other, which keeps its small adjustments.
+  let net = bre.cents - kyle.cents;
+  for (const c of Object.values(sheet.cells)) {
+    const m = subtraction(c.f);
+    if (m && m[0] !== m[1] && [bre.ref, kyle.ref].includes(m[0]) && [bre.ref, kyle.ref].includes(m[1])) {
+      const v = Math.round(parseFloat(c.v) * 100);
+      net = m[0] === bre.ref ? v : -v;
+      break;
+    }
+  }
+  const dates = items.map((x) => x.date).sort();
+  return { leftOwes: l.owes, s: { tab: sheet.name, date: dates[dates.length - 1], periodStart: dates[0], periodEnd: dates[dates.length - 1],
+    count: items.length, paid: { bre: sum(kyle.col), kyle: sum(bre.col) }, from: net > 0 ? "bre" : net < 0 ? "kyle" : null, amountCents: Math.abs(net) } };
+}
+// Every tab's settle-up, oldest first. Tabs whose halves can't be found are left out.
+export function settleUpsOf(sheets: Sheet[]): OldSettleUp[] {
+  let leftOwes: SheetPerson = "bre";
+  const out: OldSettleUp[] = [];
+  for (const sh of sheets) {
+    const x = settleUpOf(sh, leftOwes);
+    if (x) { out.push(x.s); leftOwes = x.leftOwes; }
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date));
 }

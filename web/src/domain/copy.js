@@ -278,11 +278,15 @@ export const C = {
   notEnough: "Not enough history yet to say what’s usual.", noMonth: "No spending logged for this month.",
   howUsual: "How is usual worked out?", usualExplained: "Usual is the middle value of the six months before this one, leaving out one-offs.",
   prevMonth: "Previous month", nextMonth: "Next month", thisMonth: "This month", needsWants: "Where it went", byCategory: "Everyday spending by category", allCategories: "Show every category",
+  viewMonth: "Month", viewYear: "Year", jumpTo: "Go to a month", prevYear: "Previous year", nextYear: "Next year", yearsTable: "Every year", yearCol: "Year", soFar: "so far",
+  yearBills: "Bills", yearOneOffs: "One-offs", byCategoryYear: "Everyday spending by category, against the year before",
   needs: "Needs", wants: "Wants", need: "Need", want: "Want", bucketsTitle: "Needs and wants",
   historyTitle: "Spending history", historyPick: "Choose the spreadsheet", historyReading: "Reading the spreadsheet…",
   historyNone: "Insights starts with the first month logged in the app. Add the old settle-up spreadsheet to see the years before it.",
   historyBad: "That file couldn’t be read. Choose the old settle-up spreadsheet, saved as .xlsx.",
   historyKeeps: "Only monthly totals by category and bill are saved. Store names, notes and who paid stay in the spreadsheet.",
+  settleUpsAdd: "Also add the old settle-ups to History", whoIsBre: "In the spreadsheet, Bre is",
+  historyAndSettlesSaved: "History added to Insights, and the settle-ups to History.",
   historySave: "Add to Insights", historyReplace: "Replace the history", historySaved: "History added to Insights.", historyCancel: "Choose a different file",
   bucketsHelp: "Changes here apply to both of you. Insights recalculates every month, including before the app.", saved: "Saved.",
   oneOff: "One-off purchase", oneOffHelp: "Big, rare purchases like a dishwasher. Still counts toward settling up; Insights lists it separately.",
@@ -355,3 +359,22 @@ export const historyFound = (n, tabs, first, through, total) =>
   `${n.toLocaleString("en-US")} expenses from ${tabs} settle-ups, ${monthLabel(first)} to ${monthLabel(through)}: ${fmt(total)} in all.`;
 export const historyOneOffs = n => `${n} big, rare purchases are counted as one-offs, like a fence or a dishwasher.`;
 export const historyDropped = (n, month) => `${n} ${n === 1 ? "expense" : "expenses"} from ${monthLabel(month)} on ${n === 1 ? "is" : "are"} left out, because the app already covers that month.`;
+
+// Insights: year view, month jump, bills
+export const yearHead = (year, partial, spent, prev, pct, through) =>
+  `${partial ? `${year} so far, through ${through}` : year}: ${spent} everyday` +
+  (pct == null ? "." : `, ${pct === 0 ? "about the same as" : `${Math.abs(pct)}% ${pct > 0 ? "more than" : "less than"}`} ${partial ? `the same months of ${year - 1}` : year - 1} (${prev}).`);
+export function yearCategoryLine(cat, amount, prevAmount, pct, prevYear) {
+  if (prevAmount == null) return `${cat} ${amount} · none in ${prevYear}`;
+  return Math.abs(pct) < 5 ? `${cat} ${amount} · about the same as ${prevYear}` : `${cat} ${amount} · ${Math.abs(pct)}% ${pct > 0 ? "more" : "less"} than ${prevYear} (${prevAmount})`;
+}
+export function billLine(name, amount, lastMonth, lastYear, lastYearLabel) {
+  const parts = [amount ?? "still to come"];
+  if (lastMonth) parts.push(`last month ${lastMonth}`);
+  if (lastYear) parts.push(`${lastYearLabel} ${lastYear}`);
+  return `${name}: ${parts.join(" · ")}`;
+}
+export const lastMonthName = m => `last ${parseISO(`${m}-01`).toLocaleDateString("en-US", { month: "long" })}`;
+export const settleUpsFound = (n, first, last, total) => `${n} settle-ups from ${first} to ${last}, ${total} in all. Each shows what was paid and settled; the expenses stay in the spreadsheet.`;
+export const settleUpsHas = n => `History has ${n} settle-ups from the spreadsheet.`;
+export const importedSettle = n => `From the old spreadsheet. Its ${n} expense${n === 1 ? "" : "s"} stay there, so only the totals are here.`;
