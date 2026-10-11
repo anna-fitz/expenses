@@ -7,19 +7,20 @@ import { seedIfEmpty } from "./seed";
 import type { Bill, Expense, Merchant, People, Person, Profile, Settings, Settlement } from "./types";
 
 export type Data = {
-  people: People; loaded: boolean; expenses: Expense[]; settlements: Settlement[]; merchants: Record<string, Merchant>;
+  people: People; loaded: boolean; pending: boolean; expenses: Expense[]; settlements: Settlement[]; merchants: Record<string, Merchant>;
   bills: Bill[]; profiles: Partial<Record<Person, Profile>>; settings: Partial<Settings>;
 };
 const DataContext = createContext<Data | null>(null);
 
 export function DataProvider({ people, children }: { people: People; children: ReactNode }) {
-  const [d, setD] = useState<Data>({ people, loaded: false, expenses: [], settlements: [], merchants: {}, bills: [], profiles: {}, settings: {} });
+  const [d, setD] = useState<Data>({ people, loaded: false, pending: false, expenses: [], settlements: [], merchants: {}, bills: [], profiles: {}, settings: {} });
   useEffect(() => {
     const patch = (p: Partial<Data> | ((prev: Data) => Partial<Data>)) => setD((prev) => ({ ...prev, ...(typeof p === "function" ? p(prev) : p) }));
     const fail = (e: { code?: string }) => { console.error(e); if (e.code === "permission-denied") toast.error(C.cantRead); };
     const unsubs = [
-      onSnapshot(query(collection(db, "expenses"), where("settled", "==", false)),
-        (s) => patch({ loaded: true, expenses: s.docs.map((x) => ({ id: x.id, ...x.data() }) as Expense) }), fail),
+      // With metadata changes, so Home can say "Syncing…" while this phone has changes Firebase hasn't confirmed.
+      onSnapshot(query(collection(db, "expenses"), where("settled", "==", false)), { includeMetadataChanges: true },
+        (s) => patch({ loaded: true, pending: s.metadata.hasPendingWrites, expenses: s.docs.map((x) => ({ id: x.id, ...x.data() }) as Expense) }), fail),
       onSnapshot(query(collection(db, "settlements"), orderBy("createdAt", "desc"), limit(200)),
         (s) => patch({ settlements: s.docs.map((x) => ({ id: x.id, ...x.data() }) as Settlement) }), fail),
       onSnapshot(collection(db, "merchants"), (s) => {

@@ -117,3 +117,4 @@ def run(b):
     installing(b)
     offline(b)
     switchover_and_updates(b)
+    syncing(b)

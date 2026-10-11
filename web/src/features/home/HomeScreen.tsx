@@ -8,7 +8,7 @@ import { InstallHint } from "./InstallHint";
 import { NudgeAlert } from "./NudgeAlert";
 
 export function HomeScreen() {
-  const { people } = useData(), h1 = useRef<HTMLHeadingElement>(null), [online, setOnline] = useState(navigator.onLine);
+  const { people, pending } = useData(), h1 = useRef<HTMLHeadingElement>(null), [online, setOnline] = useState(navigator.onLine);
   useScreen(null, h1);
   useEffect(() => {
     const on = () => setOnline(true), off = () => setOnline(false);
@@ -19,7 +19,7 @@ export function HomeScreen() {
     <div className="flex flex-col gap-4">
       <header>
         <h1 id="screen-title" ref={h1} tabIndex={-1} className="text-title outline-none">{greeting(people.names[people.me], new Date().getHours())}</h1>
-        {!online && <p id="sync" className="text-caption text-muted-foreground">{C.offline}</p>}
+        <p id="sync" aria-live="polite" className="text-caption text-muted-foreground">{!online ? C.offline : pending ? C.syncing : ""}</p>
       </header>
       <BalanceCard />
       <NudgeAlert />
