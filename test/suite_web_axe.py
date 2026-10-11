@@ -118,3 +118,7 @@ def run(b):
         tab(pg, 'home'); start_add(pg); keys(pg, '9'); next_step(pg); pg.check('input[name=store][value=costco]'); open_details(pg)
         scan(pg, f'web {scheme} details with one-off'); details_done(pg); close_sheet(pg)
         c.close()
+        c = new_ctx(b, scheme); pg = open_app(c, install_hint=True); login(pg)
+        scan(pg, f'web {scheme} home with the install hint')
+        pg.evaluate('window.__pending = true'); fs_batch(pg, [exp_row('e1', 500, 'p1')]); scan(pg, f'web {scheme} home syncing')
+        c.close()

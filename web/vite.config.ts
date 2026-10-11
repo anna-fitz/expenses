@@ -48,6 +48,15 @@ export default defineConfig(({ mode }) => ({
         : {}),
     },
   },
-  build: { outDir: mode === "test" ? "dist-test" : "dist" },
+  build: {
+    outDir: mode === "test" ? "dist-test" : "dist",
+    // Firebase is big by design; scripts/size-check.mjs holds the real budgets.
+    chunkSizeWarningLimit: 700,
+    // Libraries in their own long-lived files, so an app update re-downloads only the app's own code.
+    rolldownOptions: { output: { advancedChunks: { groups: [
+      { name: "firebase", test: /node_modules[\\/](@firebase|firebase)[\\/]/ },
+      { name: "vendor", test: /node_modules[\\/]/ },
+    ] } } },
+  },
   test: { environment: "node", include: ["src/**/*.test.ts", "scripts/**/*.test.ts"] },
 }));
