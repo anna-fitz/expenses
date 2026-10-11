@@ -115,4 +115,9 @@ describe("copy", () => {
       "This starts a fresh balance. The 1 expense moves to History, where you can always see it."]);
     expect([C.settleUp, C.howWeGot, C.paidOther, C.closePeriod, C.yesClose]).toEqual(["Settle up", "How we got this", "Paid another way", "Close this period", "Yes, close it"]);
   });
+  it("words installing and the offline app", () => {
+    expect([C.installTitle, C.installIos, C.installOther]).toEqual(["Add Expenses to your Home Screen 📲",
+      "Tap Share, then Add to Home Screen. It opens full screen, like an app.", "Open the browser menu, then Install app or Add to Home screen."]);
+    expect(privacySections("Sam").find((s) => s.id === "phone")?.body).toContain("The app itself, so it opens without a connection. It holds no personal data.");
+  });
 });

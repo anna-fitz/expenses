@@ -213,6 +213,7 @@ export function privacySections(them) {
     { id: "phone", title: "What’s on this phone", body: [
       "A copy of the shared data, so the app works offline. Only this app can read it.",
       "Signing out erases it from this phone.",
+      "The app itself, so it opens without a connection. It holds no personal data.",
       "A few preferences: your theme, and a short-lived note about a Venmo payment in progress."] },
     { id: "code", title: "The code", body: [
       "The app’s code is public on GitHub, so anyone can review it. It contains no names, emails, or other personal details.",
@@ -249,6 +250,8 @@ export const C = {
   pwWrongCurrent: "That current password isn’t right.", pwSaved: "Password saved.", pwFailed: "Couldn’t save the password. Try again.",
   appName: "Expenses",
   add: "Add expense",
+  installTitle: "Add Expenses to your Home Screen 📲", installIos: "Tap Share, then Add to Home Screen. It opens full screen, like an app.",
+  installOther: "Open the browser menu, then Install app or Add to Home screen.",
   onTrack: "On track", runningHigh: "Running high", runningLow: "Running low", earlyDays: "Early days", everyday: "Everyday spending",
   notEnough: "Not enough history yet to say what’s usual.", noMonth: "No spending logged for this month.",
   howUsual: "How is usual worked out?", usualExplained: "Usual is the middle value of the six months before this one, leaving out one-offs.",
