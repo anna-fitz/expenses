@@ -18,7 +18,9 @@ def online_visit(b):
     """Sign in with the worker allowed, keeping the fake data across reloads (as Firestore's own offline copy would)."""
     c = new_ctx(b, sw='allow'); pg = c.new_page(); pg.on('pageerror', lambda e: ERRS.append(str(e)))
     pg.goto(URL); pg.wait_for_selector('#login-form'); pg.evaluate("sessionStorage.setItem('__persist', '1')")
-    seed_people(pg); login(pg); pg.evaluate('navigator.serviceWorker.ready'); pg.wait_for_timeout(500)
+    seed_people(pg); login(pg)
+    # Wait for the worker, but never forever: with no worker, `ready` never settles.
+    pg.evaluate('Promise.race([navigator.serviceWorker.ready, new Promise((r) => setTimeout(r, 5000))])'); pg.wait_for_timeout(500)
     return c, pg
 
 def install_hint(b):
@@ -112,3 +114,6 @@ def syncing(b):
 
 def run(b):
     install_hint(b)
+    installing(b)
+    offline(b)
+    switchover_and_updates(b)
