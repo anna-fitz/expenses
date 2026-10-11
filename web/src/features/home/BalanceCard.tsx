@@ -1,10 +1,9 @@
 import { openSheet } from "@/app/route";
 import { BalanceBar } from "@/components/BalanceBar";
-import { PersonAvatar } from "@/components/PersonAvatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useData } from "@/data/data";
-import { C, balanceLine, daysBetween, fmt, sinceLine, todayISO } from "@/domain/copy.js";
+import { C, balanceLine, daysBetween, fmt, paidSplit, sinceLine, sinceShort, todayISO } from "@/domain/copy.js";
 import { calc, nudgeText } from "@/domain/money";
 
 export function BalanceCard() {
@@ -17,11 +16,9 @@ export function BalanceCard() {
       <p className="amt text-display tabular-nums">{fmt(Math.abs(t.net))}</p>
       {bl.sub && <p className="sub text-caption text-muted-foreground">{bl.sub}</p>}
       <BalanceBar mineSlot={slot(me)} theirSlot={slot(them)} mine={mine} theirs={theirs} label={`You paid ${fmt(mine)}, ${names[them]} paid ${fmt(theirs)}`} />
-      <div className="legend mt-2 flex justify-between gap-3 text-caption text-muted-foreground">
-        <span className="inline-flex items-center gap-1.5"><PersonAvatar who={me} size={18} /><span>You paid <span className="tabular-nums">{fmt(mine)}</span></span></span>
-        <span className="inline-flex items-center gap-1.5"><PersonAvatar who={them} size={18} /><span>{names[them]} paid <span className="tabular-nums">{fmt(theirs)}</span></span></span>
-      </div>
-      <p className="since mt-3 text-caption text-muted-foreground">{sinceLine(expenses.length, last ? last.date : null, last ? daysBetween(last.date, todayISO()) : 0)}</p>
+      <p className="since mt-3 text-caption text-muted-foreground">
+        {expenses.length ? `${sinceShort(expenses.length, last ? last.date : null)} · ${paidSplit(fmt(mine), names[them], fmt(theirs))}` : sinceLine(0, last ? last.date : null, last ? daysBetween(last.date, todayISO()) : 0)}
+      </p>
       {expenses.length > 0 && !nudgeText(expenses, settlements, settings, a, b) && (
         <Button variant="outline" size="lg" className="mt-4 h-11 w-full text-body" data-act="settle" onClick={() => openSheet("#/settle")}>{C.settleUp}</Button>
       )}

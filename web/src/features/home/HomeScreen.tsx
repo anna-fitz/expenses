@@ -23,8 +23,8 @@ export function HomeScreen() {
       </header>
       <BalanceCard />
       <NudgeAlert />
-      <InstallHint />
       <ExpenseList />
+      <InstallHint />
     </div>
   );
 }

@@ -10,7 +10,7 @@ def run(b):
     tab(pg, 'settings'); pg.click('[data-act=bills]'); pg.wait_for_timeout(200)
     check('bills: the page, active in order', pg.inner_text('#screen-title') == 'Bills' and 'Coming soon' not in pg.inner_text('main')
           and ids(pg, '#bl-active') == 'electricity,internet,gas-bill,water,pool-service,gardener' and pg.locator('#bl-retired').count() == 0
-          and '$645.55 · usually Sam' in pg.inner_text('[data-act=bill-open][data-id=electricity]'))
+          and 'Usually $645.55 · Sam pays' in pg.inner_text('[data-act=bill-open][data-id=electricity]'))
     # ---- Add ----
     pg.click('[data-act=bill-new]'); sheet_ready(pg)
     check('bills: the add sheet and its defaults', pg.inner_text('#layer-title') == 'Add bill' and pg.evaluate('location.hash') == '#/settings/bills/new'

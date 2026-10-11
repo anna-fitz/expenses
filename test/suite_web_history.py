@@ -21,9 +21,11 @@ def run(b):
     pg.evaluate("location.hash = '#/history/activity'"); pg.wait_for_timeout(200)
     lines = pg.evaluate("[...document.querySelectorAll('.act .t')].map(e => e.textContent)")
     check('history: activity sentences, newest first', lines == [
-        'Alex deleted $25.00 at Target',
-        'Alex changed Costco: amount $45.12 → $25.00, store Costco → Target',
-        'Alex added $45.12 at Costco'])
+        'You deleted $25.00 at Target',
+        'You edited Costco',
+        'You added $45.12 at Costco'])
+    check('history: an edit says what changed on its own line', pg.evaluate("[...document.querySelectorAll('.act .d')].map(e => e.textContent)")
+          == ['Amount $45.12 → $25.00 · Store Costco → Target'])
     check('history: grouped under Today, with times', pg.inner_text('main section h2') == 'Today'
           and re.search(r'\d:\d\d [AP]M', pg.inner_text('.act .s')) is not None)
     check('history: no Show more under 100', pg.locator('[data-act=more-activity]').count() == 0)
@@ -41,9 +43,9 @@ def run(b):
     pg.click('[data-act=h-settle]'); pg.wait_for_timeout(150)
     check('history: Settle-ups is the plain History address', pg.evaluate('location.hash') == '#/history')
     check('history: settle-ups, newest first', pg.evaluate("[...document.querySelectorAll('#settle-list .t')].map(e => e.textContent)")
-          == ['Alex paid Sam $377.44', 'Closed even'])
+          == ['Sep 30', 'Aug 31'] and pg.inner_text('#settle-list h2') == '2026')
     check('history: settle-up details', pg.evaluate("[...document.querySelectorAll('#settle-list .s')].map(e => e.textContent)")
-          == ['Sep 30, 2026, 2 expenses, via Venmo', 'Aug 31, 2026, 1 expense'])
+          == ['You paid Sam · 2 expenses · Venmo', 'Closed even · 1 expense'])
     fs_batch(pg, [
         ('expenses/d1', {'amountCents': 4512, 'payer': 'p1', 'merchant': 'Costco', 'category': 'Groceries', 'date': '2026-09-29', 'split': 'half',
                          'settled': True, 'settlementId': 's1', 'createdBy': 'p1', 'createdAt': 5}),

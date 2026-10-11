@@ -77,8 +77,11 @@ def run(b):
     fs_batch(pg, [exp_row('theirs', 3300, 'p2')]); pg.wait_for_timeout(150)
     n = len(activity(pg))
     pg.click('[data-act=edit][data-id="theirs"]'); pg.wait_for_timeout(250)
-    check('edit: the other person’s expense doesn’t open', not sheet_open(pg) and 'Only Sam can change or delete this one.' in toast_text(pg))
+    check('edit: the other person’s expense opens read-only', sheet_open(pg) and pg.inner_text('#layer-title') == 'Expense'
+          and 'Only Sam can change or delete this one.' in pg.inner_text('#v-readonly') and pg.locator('#e-amt, [data-act=v-edit]').count() == 0
+          and 'You owe Sam $16.50' in pg.inner_text('#v-fields'))
+    close_sheet(pg)
     pg.evaluate("location.hash = '#/edit/theirs'"); pg.wait_for_timeout(250)
-    check('edit: nor does a link to it', not sheet_open(pg) and pg.evaluate('location.hash') == '#/'
+    check('edit: a link to edit it shows it read-only instead', pg.evaluate('location.hash') == '#/view/theirs' and pg.locator('#e-amt').count() == 0
           and 'expenses/theirs' in st(pg) and len(activity(pg)) == n)
     c.close()

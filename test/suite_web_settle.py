@@ -114,7 +114,7 @@ def run(b):
     s = settlements(pg)
     check('venmo: a double tap on Yes records once, via Venmo', len(s) == 1 and s[0].get('method') == 'venmo' and pending(pg) is None and not sheet_open(pg))
     tab(pg, 'history'); pg.wait_for_timeout(150)
-    check('venmo: History says via Venmo', ', via Venmo' in pg.inner_text('#settle-list'))
+    check('venmo: History says via Venmo', '· Venmo' in pg.inner_text('#settle-list'))
     tab(pg, 'home')
     fs_batch(pg, [exp_row('e3', 2000, 'p1')])
     pg.evaluate("localStorage.setItem('venmoPending', JSON.stringify({net: -1000, count: 1, at: Date.now() - 3 * 3600e3, txn: 'charge'}))")

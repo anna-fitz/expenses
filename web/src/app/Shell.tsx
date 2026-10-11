@@ -6,6 +6,7 @@ import { PERSON_COLORS, inkOn, resolveColors } from "@/domain/people";
 import { cn } from "@/lib/utils";
 import { AddSheet } from "@/features/add/AddSheet";
 import { EditSheet } from "@/features/expenses/EditSheet";
+import { ViewSheet } from "@/features/expenses/ViewSheet";
 import { SettleSheet } from "@/features/settle/SettleSheet";
 import { useVenmoReturn } from "@/features/settle/useVenmoReturn";
 import { HistoryScreen } from "@/features/history/HistoryScreen";
@@ -54,6 +55,7 @@ export function Shell() {
       <TabBar tab={route.tab} />
       {route.sub === "add" && <AddSheet />}
       {route.sub === "edit" && route.id && <EditSheet key={route.id} id={route.id} />}
+      {route.sub === "view" && route.id && (route.tab === "home" || route.tab === "history") && <ViewSheet key={route.id} id={route.id} back={route.tab === "home" ? "#/" : "#/history/activity"} />}
       {route.tab === "home" && route.sub === "settle" && <SettleSheet />}
       {route.tab === "history" && route.sub === "settle" && route.id && <SettlementSheet key={route.id} id={route.id} />}
     </div>

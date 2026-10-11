@@ -11,7 +11,6 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/data/auth";
 import { useData } from "@/data/data";
 import { saveProfile } from "@/data/profile";
-import { signOutAndErase } from "@/data/session";
 import type { Profile, Theme } from "@/data/types";
 import { C, COLOR_NAMES, colorMoved, theirColor, tooClose, venmoHelp, venmoPrivacy } from "@/domain/copy.js";
 import { PERSON_COLORS, clashes, resolveColors, type ColorKey } from "@/domain/people";
@@ -98,7 +97,10 @@ export function ProfilePage() {
         </div>
         <p id="p-venmo-help" className="text-caption text-muted-foreground">{venmoHelp(names[them])}</p>
         {venmoErr && <p id="p-venmo-err" role="alert" className="text-caption text-destructive">{C.venmoInvalid}</p>}
-        <SecurityNote id="p-venmo-note">{vp.before}<code className="rounded bg-muted px-1 font-mono">{vp.code}</code>{vp.after}</SecurityNote>
+        <details id="p-venmo-how" className="text-caption text-muted-foreground">
+          <summary className="flex min-h-11 cursor-pointer items-center underline underline-offset-4">{C.venmoHow}</summary>
+          <SecurityNote id="p-venmo-note">{vp.before}<code className="rounded bg-muted px-1 font-mono">{vp.code}</code>{vp.after}</SecurityNote>
+        </details>
       </section>
       <section aria-labelledby="h-account" className="flex flex-col gap-3">
         <h2 id="h-account" className="text-heading">{C.account}</h2>
@@ -108,8 +110,6 @@ export function ProfilePage() {
         </div>
         <SecurityNote>{C.emailNote}</SecurityNote>
         <Button variant="outline" size="lg" className="h-11 text-body" data-act="change-pw" onClick={() => openSheet("#/settings/profile/password")}>{C.changePw}</Button>
-        <Button variant="outline" size="lg" className="h-11 text-body" data-act="signout" onClick={() => void signOutAndErase()}>{C.signOut}</Button>
-        <SecurityNote id="signout-note">{C.signOutNote}</SecurityNote>
       </section>
     </SettingsPage>
   );

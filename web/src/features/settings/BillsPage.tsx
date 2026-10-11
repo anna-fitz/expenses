@@ -18,7 +18,7 @@ export function BillsPage() {
             className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left outline-offset-[-2px] active:bg-muted">
             <span className="min-w-0 flex-1">
               <span className="block font-medium">{b.name}</span>
-              <span className="block text-caption text-muted-foreground">{billSub(fmt(b.usualCents || 0), who(b.payer))}</span>
+              <span className="block text-caption text-muted-foreground">{billSub(fmt(b.usualCents || 0), who(b.payer), b.payer === people.me)}</span>
             </span>
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           </button>

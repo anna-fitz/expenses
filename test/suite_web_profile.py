@@ -14,9 +14,9 @@ def run(b):
         check(f'profile: two emoji or text are refused ({len(bad)} chars)', pg.inner_text('#p-emoji-err') == 'Use one emoji.'
               and pg.get_attribute('#p-emoji', 'aria-invalid') == 'true' and 'p-emoji-err' in pg.get_attribute('#p-emoji', 'aria-describedby')
               and pg.evaluate('document.activeElement.id') == 'p-emoji' and st(pg)['config/profile-p1'].get('emoji') == '👩🏽‍💻')
-    tab(pg, 'home')
-    check('profile: the new emoji shows on Home', '👩🏽‍💻' in pg.inner_text('.legend'))
-    tab(pg, 'settings'); pg.click('[data-act=profile]'); pg.wait_for_timeout(150)
+    tab(pg, 'settings')
+    check('profile: the new emoji shows on Settings', '👩🏽‍💻' in pg.inner_text('[data-act=profile]'))
+    pg.click('[data-act=profile]'); pg.wait_for_timeout(150)
     pg.click('[data-act=emoji-clear]'); pg.wait_for_timeout(150)
     check('profile: Use my initial instead clears it', st(pg)['config/profile-p1'].get('emoji') is None and 'Emoji removed.' in toast_text(pg)
           and pg.locator('[data-act=emoji-clear]').count() == 0)
@@ -40,6 +40,7 @@ def run(b):
           and pg.evaluate("document.documentElement.classList.contains('dark')"))
     pg.check('input[name=p-theme][value=light]'); pg.wait_for_timeout(100)
     # Venmo
+    pg.click('#p-venmo-how summary')
     check('profile: the Venmo note explains the mechanism', pg.inner_text('#p-venmo-note code') == 'venmo.com/{username}?txn=pay&amount=…&note=…'
           and 'never signs in to Venmo' in pg.inner_text('#p-venmo-note') and 'readable only by your account and Sam’s' in pg.inner_text('#p-venmo-note'))
     pg.fill('#p-venmo', ' @alex_pays '); pg.click('[data-act=venmo-save]'); pg.wait_for_timeout(150)

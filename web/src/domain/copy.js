@@ -46,42 +46,56 @@ export function savedLine(amount, merchant, bill) {
 }
 
 /* ---------- Activity log ---------- */
-const FIELD_NAMES = { amountCents: "amount", payer: "paid by", merchant: "store", category: "category", date: "date", split: "split", note: "note", covers: "covers", oneOff: "one-off" };
-function showVal(field, v, names) {
-  if (field === "oneOff") return v === true ? "yes" : "no";
-  if (field === "usualCents") return fmt(v);
-  if (v === "" || v == null) return "none";
-  if (field === "amountCents") return fmt(v);
-  if (field === "payer") return names[v] || v;
-  if (field === "split") return v === "full" ? "owed in full" : "50/50";
+// "You" when it's the person reading, the other person's name otherwise. Mid-sentence "you" is lower case.
+export const personName = (id, names, me, start = true) => (id && id === me ? (start ? "You" : "you") : names[id] || (start ? "Someone" : "someone"));
+function showVal(field, v, names, me) {
+  if (field === "usualCents" || field === "amountCents") return fmt(v);
+  if (field === "payer") return personName(v, names, me, false);
   if (field === "date") return shortDate(v);
   return String(v);
 }
-const BILL_FIELD_NAMES = { name: "name", usualCents: "usual amount", category: "category", payer: "usually paid by" };
-function changeList(changes, fieldNames, names) {
-  const ch = (changes || []).map(c => `${fieldNames[c.field] || c.field} ${showVal(c.field, c.from, names)} → ${showVal(c.field, c.to, names)}`);
-  return ch.slice(0, 3).join(", ") + (ch.length > 3 ? `, and ${ch.length - 3} more` : "");
+const FIELD_LABELS = { amountCents: "Amount", merchant: "Store", category: "Category", date: "Date", name: "Name", usualCents: "Usual amount" };
+// What an edit did, in plain words: added and removed for fields that were or became empty, phrases for yes/no and
+// who-pays fields, and "Field before → after" only for a real change of value. At most three, then "and N more".
+export function editPhrases(changes, names, me) {
+  const empty = v => v === "" || v == null;
+  const out = (changes || []).map(c => {
+    const { field: f, from, to } = c;
+    if (f === "oneOff") return to === true ? "Marked as a one-off" : "No longer a one-off";
+    if (f === "split") return to === "full" ? "Now owed in full" : "Now split 50/50";
+    if (f === "payer") return `Now paid by ${personName(to, names, me, false)}`;
+    if (f === "note") return empty(to) ? "Removed the note" : empty(from) ? `Added a note: “${to}”` : `Note changed to “${to}”`;
+    if (f === "covers") return empty(to) ? "Removed the months covered" : empty(from) ? `Added months covered: ${to}` : `Months covered changed to ${to}`;
+    const label = FIELD_LABELS[f] || f;
+    if (empty(from)) return `${label} set to ${showVal(f, to, names, me)}`;
+    return `${label} ${showVal(f, from, names, me)} → ${showVal(f, to, names, me)}`;
+  });
+  return out.slice(0, 3).join(" · ") + (out.length > 3 ? ` · and ${out.length - 3} more` : "");
 }
 
-export function activityLine(a, names, canon = n => n) {
-  const who = names[a.by] || "Someone", s = a.summary || {};
+// An activity entry's first line. Edits put what changed on a second line (activityDetail).
+export function activityLine(a, names, canon = n => n, me) {
+  const who = personName(a.by, names, me), s = a.summary || {};
   switch (a.action) {
     case "add": return `${who} added ${fmt(s.amountCents)} at ${canon(s.merchant)}`;
     case "delete": return `${who} deleted ${fmt(s.amountCents)} at ${canon(s.merchant)}`;
-    case "edit": return `${who} changed ${canon(s.merchant)}: ${changeList(a.changes, FIELD_NAMES, names)}`;
-    case "settle": return s.amountCents ? `${who} settled up: ${names[s.from]} paid ${names[s.to]} ${fmt(s.amountCents)}` : `${who} closed an even period`;
+    case "edit": return `${who} edited ${canon(s.merchant)}`;
+    case "settle":
+      if (!s.amountCents) return `${who} closed an even period`;
+      return s.from === a.by ? `${who} paid ${personName(s.to, names, me, false)} ${fmt(s.amountCents)} to settle up`
+        : `${who} settled up: ${personName(s.from, names, me)} paid ${personName(s.to, names, me, false)} ${fmt(s.amountCents)}`;
     case "store": {
       const n = s.name, c = (a.changes || [])[0] || {};
       if (a.kind === "rename") return `${who} renamed ${n} to ${s.to}`;
       if (a.kind === "merge") return `${who} merged ${n} into ${s.to}`;
-      if (a.kind === "category") return `${who} changed ${n}’s usual category: ${c.from} → ${c.to}`;
+      if (a.kind === "category") return `${who} changed ${n}’s usual category to ${c.to}`;
       if (a.kind === "remove") return `${who} removed the store ${n}`;
       if (a.kind === "restore") return `${who} brought back the store ${n}`;
       break;
     }
     case "bill": {
       if (a.kind === "add") return `${who} added the bill ${s.name}, usually ${fmt(s.amountCents)}`;
-      if (a.kind === "edit") return `${who} changed ${s.name}: ${changeList(a.changes, BILL_FIELD_NAMES, names)}`;
+      if (a.kind === "edit") return `${who} edited the bill ${s.name}`;
       if (a.kind === "retire") return `${who} retired the bill ${s.name}`;
       if (a.kind === "restore") return `${who} brought back the bill ${s.name}`;
       break;
@@ -89,6 +103,7 @@ export function activityLine(a, names, canon = n => n) {
   }
   return `${who} made a change`;
 }
+export const activityDetail = (a, names, me) => (a.action === "edit" || (a.action === "bill" && a.kind === "edit") ? editPhrases(a.changes, names, me) : "");
 
 export const storeExists = name => `There’s already a store called ${name}.`;
 export const mergeHelp = name => `Past expenses at ${name} will show and count under the store you pick.`;
@@ -170,7 +185,7 @@ export const mergeTitle = name => `Merge ${name} into…`;
 export const removeTitle = name => `Remove ${name}?`;
 export const retireTitle = name => `Retire ${name}?`;
 export const bringBackName = name => `Bring back ${name}`;
-export const billSub = (amount, who) => `${amount} · usually ${who}`;
+export const billSub = (amount, who, mine) => `Usually ${amount} · ${who} ${mine ? "pay" : "pays"}`;
 
 /* ---------- Insights ---------- */
 const nth = n => n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th");
@@ -206,7 +221,11 @@ export const monthLabel = m => parseISO(`${m}-01`).toLocaleDateString("en-US", {
 export const monthShort = m => parseISO(`${m}-01`).toLocaleDateString("en-US", { month: "short" });
 
 /* ---------- History ---------- */
-export const settleLine = (s, names) => s.amountCents ? `${names[s.from]} paid ${names[s.to]} ${fmt(s.amountCents)}` : "Closed even";
+export const settleLine = (s, names, me) => s.amountCents ? `${personName(s.from, names, me)} paid ${personName(s.to, names, me, false)} ${fmt(s.amountCents)}` : "Closed even";
+// A settle-up row: the date leads (the list is grouped by year), who paid whom and how many expenses underneath.
+export const settleRowDate = s => shortDate(s.date);
+export const settleRowSub = (s, names, me) => [s.amountCents ? `${personName(s.from, names, me)} paid ${personName(s.to, names, me, false)}` : "Closed even",
+  `${s.count} expense${s.count === 1 ? "" : "s"}`, ...(s.method === "venmo" ? ["Venmo"] : [])].join(" · ");
 export const settleSub = s => `${longDate(s.date)}, ${s.count} expense${s.count === 1 ? "" : "s"}${s.method === "venmo" ? ", via Venmo" : ""}`;
 export const settledTitle = date => `Settled ${longDate(date)}`;
 export const halfPaid = name => `${name} paid, split 50/50`;
@@ -304,7 +323,9 @@ export const C = {
   gettingPaid: "Getting paid", venmoLabel: "Your Venmo username", account: "Account", emailLabel: "Email",
   emailNote: "Used only to sign in. Admins can see it in the Firebase console.", changePw: "Change password", save: "Save", off: "Off",
   reminderOn: "With these settings, the reminder is showing now.", reminderOff: "No reminder right now.",
-  settleUp: "Settle up", howWeGot: "How we got this", paidOther: "Paid another way", closePeriod: "Close this period", yesClose: "Yes, close it",
+  venmoHow: "How the Venmo link works", historyNoneShort: "Not added",
+  viewTitle: "Expense", paidByL: "Paid by", splitL: "Split", dateL: "Date", categoryL: "Category", coversL: "Months covered", noteL: "Note", loggedByL: "Logged by", statusL: "Status", notSettled: "Not settled yet", settledWord: "Settled", billTag: "Bill", oneOffTag: "One-off", close: "Close",
+  settleUp: "Settle up", howWeGot: "How we got this", paidOther: "Paid another way", markPaid: "Mark as paid", closePeriod: "Close this period", yesClose: "Yes, close it",
   next: "Next", log: "Log expense", reviewTitle: "Look good?", pickBill: "Pick a bill", clear: "Clear", done: "Done", storeDefault: "Store’s default",
   billsHelp: "Bills are your recurring shared costs, kept separate from everyday expenses. Each one fills in its usual amount. Change it on the keypad if this month’s is different.",
   logWithBill: "Log it with Pick a bill", addANote: "Add a note",
@@ -314,10 +335,10 @@ export const C = {
   whereTitle: "Where was it?", store: "Store", storeSearch: "Search, or type a new one", chooseStore: "Choose a store",
   pickStore: "Pick a store first", typeToAdd: "Type a store name to add it.", chooseCategory: "Choose a category",
   editAmount: "Edit amount", details: "Details", date: "Date", split: "Split",
-  splitHalf: "50/50", splitFull: "Owed in full", category: "Category", note: "Note", notePh: "What was it? e.g., dog food", covers: "Covers",
-  coversPh: "July – September", coversHelp: "For bills that pay for more than one month.",
+  splitHalf: "50/50", splitFull: "Owed in full", category: "Category", note: "Note", notePh: "What was it? e.g., dog food", covers: "Months covered",
+  coversPh: "e.g. July – September", coversHelp: "For bills that pay for more than one month.",
   dupTitle: "Looks like a repeat 🔁", dupCancel: "Don’t add", dupOk: "Log anyway", undo: "Undo", edit: "Edit", dismiss: "Dismiss",
-  editTitle: "Edit expense", saveChanges: "Save changes", del: "Delete", delConfirm: "Tap again to delete",
+  editTitle: "Edit expense", saveChanges: "Save changes", del: "Delete", delExpense: "Delete this expense", delConfirm: "Tap again to delete",
   amountLike: "Enter an amount, like 24.99", needStore: "Add where it was from",
   editGone: "That expense isn’t here anymore. It was deleted or settled on the other phone.",
   settleUps: "Settle-ups", activityTab: "Activity", noSettles: "No settle-ups yet 🧾",
@@ -400,3 +421,19 @@ export const yearLabel = (year, partial, through) => partial ? `${year} so far, 
 export const vsYearChip = (pct, prevYear) => pct == null ? `No ${prevYear} to compare` : pct === 0 ? `Same as ${prevYear}` : `${Math.abs(pct)}% ${pct > 0 ? "more" : "less"} than ${prevYear}`;
 export const prevYearIs = (prevYear, amount, partial) => `${partial ? `Same months of ${prevYear}` : prevYear}: ${amount}`;
 export const dumbbellRow = (cat, now, before, year) => before ? `${cat}: ${now} in ${year}, ${before} in ${year - 1}` : `${cat}: ${now} in ${year}, none in ${year - 1}`;
+export const markPaidAmount = amount => `Mark ${amount} as paid`;
+// The read-only view of an expense
+export const viewOwe = (amount, them) => `${them} owes you ${amount}`;
+export const viewYouOwe = (amount, them) => `You owe ${them} ${amount}`;
+export const loggedBy = (who, date, time) => `${who}, ${date} at ${time}`;
+export const onlyTheyCan = who => `Only ${who} can change or delete this one. Ask ${who} if something’s wrong.`;
+export const settledOn = date => `Settled ${longDate(date)}`;
+// The balance card's one supporting line: how many expenses since the last settle-up, and what each of you paid.
+export function sinceShort(count, lastISO) {
+  const n = `${count} expense${count === 1 ? "" : "s"}`;
+  return lastISO ? `${n} since ${shortDate(lastISO)}` : n;
+}
+export const paidSplit = (mine, them, theirs) => `you paid ${mine}, ${them} paid ${theirs}`;
+export const bucketsSummary = (needs, wants) => `${needs} needs, ${wants} wants`;
+export const historyRange = (first, through) => `${parseISO(`${first}-01`).toLocaleDateString("en-US", { month: "short", year: "numeric" })} – ${parseISO(`${through}-01`).toLocaleDateString("en-US", { month: "short", year: "numeric" })}`;
+export const weekdayDate = s => parseISO(s).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", ...(s.slice(0, 4) !== todayISO().slice(0, 4) ? { year: "numeric" } : {}) });

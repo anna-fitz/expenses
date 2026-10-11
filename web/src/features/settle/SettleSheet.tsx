@@ -9,7 +9,7 @@ import { useData } from "@/data/data";
 import type { Settlement } from "@/data/types";
 import { clearPending, readPending, writePending } from "@/data/venmo";
 import { recordSettlement } from "@/data/writes";
-import { C, confirmBody, confirmTitle, fmt, noVenmo, payVenmo, periodLine, requestVenmo, settleHero, settleNote, todayISO } from "@/domain/copy.js";
+import { C, confirmBody, confirmTitle, fmt, markPaidAmount, noVenmo, payVenmo, periodLine, requestVenmo, settleHero, settleNote, todayISO } from "@/domain/copy.js";
 import { calc, settleRows } from "@/domain/money";
 import { pendingValid, settlementRecord, venmoUrl, type VenmoPending } from "@/domain/settle";
 import { cn } from "@/lib/utils";
@@ -110,7 +110,7 @@ export function SettleSheet() {
           )}
           {!even && !theirVenmo && <p id="s-novenmo" className="text-body text-muted-foreground">{noVenmo(names[them])}</p>}
           <Button size="lg" variant={!even && theirVenmo ? "outline" : "default"} className={main} data-act="settle-other" onClick={() => setConfirmOpen(true)}>
-            {even ? C.closePeriod : C.paidOther}</Button>
+            {even ? C.closePeriod : theirVenmo ? C.paidOther : markPaidAmount(amount)}</Button>
         </div>
       )}
       <BottomDrawer id="settle-confirm" title={confirmTitle(even ? "even" : txn, names[them], amount)} description={confirmBody(count)}

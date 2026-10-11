@@ -11,7 +11,7 @@ def run(b):
           and 'It’s quiet… too quiet 👀' in pg.inner_text('main') and 'pops up on Sam’s phone' in pg.inner_text('main'))
     fs_write(pg, 'expenses/k1', exp(amountCents=120000, payer='p2', createdBy='p2', createdAt=3))
     check('home: balance', pg.inner_text('.hero .who') == 'You owe Sam' and pg.inner_text('.hero .amt') == '$600.00')
-    check('home: legend', 'You paid $0.00' in pg.inner_text('.legend') and 'Sam paid $1,200.00' in pg.inner_text('.legend'))
+    check('home: who paid, in one line', 'you paid $0.00, Sam paid $1,200.00' in pg.inner_text('.since'))
     check('home: bar is labelled', pg.get_attribute('[role=img]', 'aria-label') == 'You paid $0.00, Sam paid $1,200.00')
     fs_write(pg, 'expenses/b1', exp(amountCents=100, date=ago(61), createdAt=2))
     check('home: reminder', pg.inner_text('#nudge p') == 'It’s been 61 days and the balance is over $500.'

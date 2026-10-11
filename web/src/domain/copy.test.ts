@@ -1,11 +1,26 @@
 import { describe, expect, it } from "vitest";
-import { C, activityLine, addNewStore, balanceLine, emptyBody, greeting, nudgeLine, optsSummary, privacySections, savedLine, settleLine, settleSub, settledTitle, SIGNIN_NOTE, splitHelp, storeSub, atLine, categoryDefault, dateLabel, splitLine, storeSelected, todayISO, isABill, settleHero, periodLine, payVenmo, requestVenmo, confirmTitle, confirmBody, COLOR_NAMES, billsCount, daysOpt, reminderSummary, storesCount, theirColor, tooClose, venmoPrivacy, bringBackName, billSub, mergeInto, mergeTitle, removeTitle, retireTitle, storeIsBill, storeTaken, bucketLine, monthLabel, monthShort, oneOffsLine, onTrackLine, pastLine, billsIn, paceLine, lastYearLine, backTo, categoryLine } from "./copy.js";
+import { C, activityDetail, activityLine, settleRowDate, settleRowSub, addNewStore, balanceLine, emptyBody, greeting, nudgeLine, optsSummary, privacySections, savedLine, settleLine, settleSub, settledTitle, SIGNIN_NOTE, splitHelp, storeSub, atLine, categoryDefault, dateLabel, splitLine, storeSelected, todayISO, isABill, settleHero, periodLine, payVenmo, requestVenmo, confirmTitle, confirmBody, COLOR_NAMES, billsCount, daysOpt, reminderSummary, storesCount, theirColor, tooClose, venmoPrivacy, bringBackName, billSub, mergeInto, mergeTitle, removeTitle, retireTitle, storeIsBill, storeTaken, bucketLine, monthLabel, monthShort, oneOffsLine, onTrackLine, pastLine, billsIn, paceLine, lastYearLine, backTo, categoryLine } from "./copy.js";
 
 const N = { p1: "Alex", p2: "Sam" };
 describe("copy", () => {
-  it("words a one-off change in the log", () =>
-    expect(activityLine({ by: "p1", action: "edit", summary: { merchant: "Costco" }, changes: [{ field: "oneOff", from: "", to: true }] }, N))
-      .toBe("Alex changed Costco: one-off no → yes"));
+  it("words edits in plain words, with You for the reader", () => {
+    const edit = (changes: unknown[], by = "p1") => ({ by, action: "edit", summary: { merchant: "Costco" }, changes });
+    expect(activityLine(edit([]), N, (n: string) => n, "p1")).toBe("You edited Costco");
+    expect(activityLine(edit([], "p2"), N, (n: string) => n, "p1")).toBe("Sam edited Costco");
+    expect(activityDetail(edit([{ field: "oneOff", from: "", to: true }]), N, "p1")).toBe("Marked as a one-off");
+    expect(activityDetail(edit([{ field: "note", from: "", to: "Paper towels" }, { field: "covers", from: "", to: "July – September" }]), N, "p1"))
+      .toBe("Added a note: “Paper towels” · Added months covered: July – September");
+    expect(activityDetail(edit([{ field: "amountCents", from: 4512, to: 2500 }, { field: "payer", from: "p1", to: "p2" }, { field: "split", from: "half", to: "full" }, { field: "note", from: "x", to: "" }]), N, "p1"))
+      .toBe("Amount $45.12 → $25.00 · Now paid by Sam · Now owed in full · and 1 more");
+    expect(activityDetail({ by: "p1", action: "add", summary: {} }, N, "p1")).toBe("");
+  });
+  it("words settle-ups led by the date, with You", () => {
+    expect(settleRowDate({ date: "2026-10-01" })).toBe("Oct 1");
+    expect(settleRowSub({ amountCents: 152127, from: "p1", to: "p2", count: 71 }, N, "p1")).toBe("You paid Sam · 71 expenses");
+    expect(settleRowSub({ amountCents: 500, from: "p2", to: "p1", count: 1, method: "venmo" }, N, "p1")).toBe("Sam paid you · 1 expense · Venmo");
+    expect(settleRowSub({ amountCents: 0, count: 3 }, N, "p1")).toBe("Closed even · 3 expenses");
+    expect(activityLine({ by: "p1", action: "settle", summary: { amountCents: 69022, from: "p1", to: "p2" } }, N, (n: string) => n, "p1")).toBe("You paid Sam $690.22 to settle up");
+  });
   it("words Insights", () => {
     expect(onTrackLine("$600.00", "$580.65")).toBe("$600.00 so far · usually $580.65 by now");
     expect([billsIn(2, 6, ["Electricity", "Water", "Gardener", "Pool service"], "$80.00"), billsIn(3, 6, ["Electricity", "Water", "Gardener"], "$80.00"), billsIn(2, 2, [], "$90.00"), billsIn(1, 3, ["Water", "Gas bill"], "$1.00")]).toEqual([
@@ -29,7 +44,7 @@ describe("copy", () => {
     expect(storeTaken("Costco")).toBe("There’s already a store called Costco. Give the bill a different name.");
     expect([mergeInto("Costco"), mergeTitle("TJs"), removeTitle("Aldi"), retireTitle("Water"), bringBackName("Aldi")])
       .toEqual(["Merge into Costco", "Merge TJs into…", "Remove Aldi?", "Retire Water?", "Bring back Aldi"]);
-    expect(billSub("$280.00", "Sam")).toBe("$280.00 · usually Sam");
+    expect(billSub("$280.00", "Sam")).toBe("Usually $280.00 · Sam pays");
     expect([C.searchStores, C.removedStores, C.bringBack, C.nameLabel, C.usualCat, C.mergeAnother, C.removeStore, C.addBill,
       C.activeBills, C.retiredBills, C.usualAmount, C.usuallyPaidBy, C.retireBill, C.retireHelp]).toEqual([
       "Search stores", "Removed stores", "Bring back", "Name", "Usual category", "Merge into another store", "Remove store", "Add bill",

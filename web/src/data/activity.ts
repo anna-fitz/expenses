@@ -4,7 +4,7 @@ import type { Change } from "@/domain/expenses";
 import { db } from "./firebase";
 import type { Person } from "./types";
 
-export type Activity = { id: string; at: number; by: Person; action: string; kind?: string; summary?: Record<string, unknown>; changes?: Change[] };
+export type Activity = { id: string; at: number; by: Person; action: string; kind?: string; expenseId?: string | null; summary?: Record<string, unknown>; changes?: Change[] };
 // The newest `max` entries, live. Raising `max` keeps showing the current list until the longer one arrives.
 export function useActivity(max: number) {
   const [s, setS] = useState<{ loaded: boolean; error: boolean; list: Activity[] }>({ loaded: false, error: false, list: [] });

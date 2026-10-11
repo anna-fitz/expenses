@@ -7,7 +7,10 @@ import { Button } from "@/components/ui/button";
 import { useData } from "@/data/data";
 import { signOutAndErase } from "@/data/session";
 import { withoutBills } from "@/domain/bills";
-import { C, billsCount, reminderSummary, storesCount } from "@/domain/copy.js";
+import { C, billsCount, bucketsSummary, historyRange, reminderSummary, storesCount } from "@/domain/copy.js";
+import { CATEGORIES } from "@/domain/categories";
+import { bucketOf } from "@/domain/insights";
+import { useHistory } from "@/features/insights/useInsightsData";
 import { DEFAULT_SETTINGS } from "@/domain/money";
 import { pickerStores } from "@/domain/stores.js";
 
@@ -15,12 +18,14 @@ export function SettingsScreen() {
   const { people, merchants, bills, settings } = useData(), h1 = useRef<HTMLHeadingElement>(null);
   useScreen(C.tabSettings, h1);
   const s = { ...DEFAULT_SETTINGS, ...settings };
+  const history = useHistory(), hist = history && Object.keys(history.months).length ? Object.keys(history.months).sort() : null;
+  const needs = CATEGORIES.filter((c) => bucketOf(c, settings.buckets || {}) === "need").length;
   const rows: [string, string, string][] = [
     ["stores", C.stores, storesCount(withoutBills(pickerStores(merchants, ""), bills).length)],
     ["bills", C.bills, billsCount(bills.filter((x) => x.active !== false).length)],
     ["reminder", C.reminderTitle, reminderSummary(s.nudgeDays, s.nudgeCents)],
-    ["buckets", C.bucketsTitle, ""],
-    ["history", C.historyTitle, ""],
+    ["buckets", C.bucketsTitle, bucketsSummary(needs, CATEGORIES.length - needs)],
+    ["history", C.historyTitle, hist ? historyRange(hist[0], history!.through) : history === null ? C.historyNoneShort : ""],
   ];
   return (
     <div className="flex flex-col gap-6">
