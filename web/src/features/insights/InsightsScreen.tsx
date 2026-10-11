@@ -1,10 +1,11 @@
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { openSheet, type Route } from "@/app/route";
 import { useScreen } from "@/app/useScreen";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useData } from "@/data/data";
+import { withBillIds } from "@/domain/bills";
 import { C, backTo, monthLabel } from "@/domain/copy.js";
 import { categoryRows, figuresFor, monthOf, shiftMonth, today, usual, usualMix } from "@/domain/insights";
 import { cn } from "@/lib/utils";
@@ -24,7 +25,8 @@ export function InsightsScreen({ route }: { route: Route }) {
   const m = year ? (year === thisYear ? current : `${year}-12`) : /^\d{4}-\d{2}$/.test(sub) && sub <= current ? sub : current;
   // The year view compares against the year before, so it loads from then; a month needs the 13 months before it.
   const from = year ? `${year - 1}-01-01` : `${shiftMonth(m, -13)}-01`;
-  const history = useHistory(), all = useExpensesSince(from), map = settings.buckets || {};
+  const history = useHistory(), loaded = useExpensesSince(from), map = settings.buckets || {};
+  const all = useMemo(() => (loaded ? withBillIds(loaded, bills) : loaded), [loaded, bills]);
   const get = (k: string) => figuresFor(k, all ?? [], history ?? null, map);
   // The first month of the summary, or of app data (loaded back from the month shown, so going back keeps finding older months).
   const earliest = [current, ...Object.keys(history?.months || {}), ...(all || []).map((x) => monthOf(x.date))].sort()[0];

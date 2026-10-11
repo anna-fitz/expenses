@@ -12,3 +12,8 @@ export function billNamed<T extends Pick<Bill, "name">>(bills: T[], q: string): 
   const key = slug(q.trim().replace(/\s+/g, " "));
   return q.trim() ? bills.find((b) => slug(b.name) === key) || null : null;
 }
+// An expense logged at a bill's name as an ordinary store (the old app allowed it) is that bill, for Insights' bill totals.
+export function withBillIds<T extends { merchant: string; billId?: string | null }>(list: T[], bills: Pick<Bill, "id" | "name">[]): T[] {
+  const byName = new Map(bills.map((b) => [slug(b.name), b.id]));
+  return list.map((x) => (x.billId || !byName.has(slug(x.merchant)) ? x : { ...x, billId: byName.get(slug(x.merchant))! }));
+}
