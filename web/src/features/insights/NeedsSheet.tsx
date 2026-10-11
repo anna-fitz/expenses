@@ -26,7 +26,7 @@ export function NeedsSheet({ month, get }: { month: string; get: (m: string) => 
         <tbody>
           {months.map((m, i) => (
             <tr key={m} className={i === sel ? "border-t bg-muted font-medium" : "border-t"} aria-current={i === sel ? "true" : undefined}>
-              <td className="py-0"><button type="button" data-act="needs-month" className="min-h-9 w-full text-left underline-offset-4 hover:underline" onClick={() => setSel(i)}>{label(m)}</button></td>
+              <td className="py-0"><button type="button" data-act="needs-month" className="min-h-11 w-full text-left underline-offset-4 hover:underline" onClick={() => setSel(i)}>{label(m)}</button></td>
               {BUCKETS.map((b) => <td key={b} className="py-1.5 text-right">{figs[i] ? fmt(figs[i]!.buckets[b]) : "—"}</td>)}
             </tr>
           ))}

@@ -41,7 +41,7 @@ def run(b):
     e = bill_log(pg)[-1]
     check('bills: an edit logs only what changed', e['kind'] == 'edit' and e['summary'] == {'name': 'Electricity'}
           and e['changes'] == [{'field': 'usualCents', 'from': 64555, 'to': 70000}, {'field': 'payer', 'from': 'p2', 'to': 'p1'}]
-          and '$700.00 · usually You' in pg.inner_text('[data-act=bill-open][data-id=electricity]'))
+          and 'Usually $700.00 · You pay' in pg.inner_text('[data-act=bill-open][data-id=electricity]'))
     pg.click('[data-act=bill-open][data-id=electricity]'); sheet_ready(pg); close_sheet(pg)
     check('bills: Escape closes the sheet', not sheet_open(pg) and pg.evaluate('location.hash') == '#/settings/bills')
     # ---- Retire and bring back ----

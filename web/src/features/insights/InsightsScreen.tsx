@@ -53,7 +53,7 @@ export function InsightsScreen({ route }: { route: Route }) {
         <Button variant="ghost" size="icon" className="size-11" data-act="month-prev" aria-label={year ? C.prevYear : C.prevMonth} disabled={atStart} onClick={() => go(prev)}>
           <ChevronLeft className="size-5" aria-hidden="true" /></Button>
         {/* The month (or year) name is the picker: a native select laid over it, so phones get their own wheel. */}
-        <div className="relative flex flex-1 justify-center rounded-md focus-within:ring-2 focus-within:ring-ring">
+        <div className="relative flex min-h-11 flex-1 items-center justify-center rounded-md focus-within:ring-2 focus-within:ring-ring">
           <span className="inline-flex items-center gap-1 border-b border-dashed border-muted-foreground text-heading" aria-hidden="true">
             <span id="month-label">{year ?? monthLabel(m)}</span><ChevronDown className="size-4 text-muted-foreground" /></span>
           <select id="month-pick" aria-label={year ? C.jumpToYear : C.jumpTo} className="absolute inset-0 w-full cursor-pointer opacity-0" value={year ? String(year) : m}
@@ -67,7 +67,7 @@ export function InsightsScreen({ route }: { route: Route }) {
         <Button variant="ghost" size="icon" className="size-11" data-act="month-next" aria-label={year ? C.nextYear : C.nextMonth} disabled={atEnd} onClick={() => go(next)}>
           <ChevronRight className="size-5" aria-hidden="true" /></Button>
       </div>
-      {!year && m !== current && <Button variant="link" className="-mt-2 h-9 self-center text-caption" data-act="month-now" onClick={() => go(current)}>{backTo(current)}</Button>}
+      {!year && m !== current && <Button variant="link" className="-mt-2 h-11 self-center text-body" data-act="month-now" onClick={() => go(current)}>{backTo(current)}</Button>}
       {!ready ? <Skeleton className="h-40 rounded-xl" /> : year ? (
         <YearView year={year} current={current} get={get} firstYear={firstYear} items={all ?? null} go={go} />
       ) : (
