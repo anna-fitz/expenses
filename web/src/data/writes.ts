@@ -1,7 +1,7 @@
 import { collection, doc, getDocs, increment, query, setDoc, where, writeBatch, type WriteBatch } from "firebase/firestore";
 import { toast } from "sonner";
 import { C, todayISO } from "@/domain/copy.js";
-import { editChanges, sameMonth, summaryOf, type Change } from "@/domain/expenses";
+import { canEdit, editChanges, sameMonth, summaryOf, type Change } from "@/domain/expenses";
 import { settlementRecord } from "@/domain/settle";
 import { canonicalSlug, slug } from "@/domain/stores.js";
 import { db } from "./firebase";
@@ -58,6 +58,7 @@ export async function billMonthDuplicate(billId: string, date: string, local: Ex
 
 // Logs only the fields that changed, compared against the store's current name. Returns false (and writes nothing) when nothing did.
 export function editExpense(orig: Expense, next: ExpenseFields, by: Person, merchants: Record<string, Merchant>): boolean {
+  if (!canEdit(orig, by)) return false;   // only whoever logged it; the security rules enforce the same
   const changes = editChanges(orig, next, merchants);
   if (!changes.length) return false;
   const b = writeBatch(db);
@@ -67,6 +68,7 @@ export function editExpense(orig: Expense, next: ExpenseFields, by: Person, merc
   return true;
 }
 export function deleteExpense(orig: Expense, by: Person) {
+  if (!canEdit(orig, by)) return;
   const b = writeBatch(db);
   b.delete(doc(db, "expenses", orig.id));
   logEntry(b, by, { action: "delete", expenseId: orig.id, summary: summaryOf(orig) });

@@ -73,4 +73,12 @@ def run(b):
         'Gifts & occasions', 'Groceries (default for Costco)', 'Home & household', 'Pets', 'Pool & yard', 'Travel & fun', 'Utilities', 'Other']
           and pg.input_value('#e-cat') == 'Groceries')
     close_sheet(pg)
+    # Only whoever logged an expense can change or delete it
+    fs_batch(pg, [exp_row('theirs', 3300, 'p2')]); pg.wait_for_timeout(150)
+    n = len(activity(pg))
+    pg.click('[data-act=edit][data-id="theirs"]'); pg.wait_for_timeout(250)
+    check('edit: the other person’s expense doesn’t open', not sheet_open(pg) and 'Only Sam can change or delete this one.' in toast_text(pg))
+    pg.evaluate("location.hash = '#/edit/theirs'"); pg.wait_for_timeout(250)
+    check('edit: nor does a link to it', not sheet_open(pg) and pg.evaluate('location.hash') == '#/'
+          and 'expenses/theirs' in st(pg) and len(activity(pg)) == n)
     c.close()

@@ -13,7 +13,8 @@ import type { Expense, Merchant, Person } from "@/data/types";
 import { deleteExpense, editExpense } from "@/data/writes";
 import { MAX_CENTS, centsToBuf, toCents } from "@/domain/amount";
 import { categoryOptions } from "@/domain/categories";
-import { C, todayISO } from "@/domain/copy.js";
+import { C, notYours, todayISO } from "@/domain/copy.js";
+import { canEdit, ownerOf } from "@/domain/expenses";
 import { canonicalName, canonicalSlug } from "@/domain/stores.js";
 
 type Split = Expense["split"];
@@ -34,7 +35,12 @@ export function EditSheet({ id }: { id: string }) {
   useEffect(() => {
     if (loaded && !orig && !done.current) { done.current = true; close(); toast(C.editGone); }
   }, [loaded, orig]);   // eslint-disable-line react-hooks/exhaustive-deps
-  if (!orig || !f) return null;
+  // The other person logged it (a link or the browser's back button can still land here): read-only, so close and say whose it is.
+  const theirs = !!orig && !canEdit(orig, people.me);
+  useEffect(() => {
+    if (theirs && !done.current) { done.current = true; close(); toast(notYours(people.names[ownerOf(orig!)] || C.someone)); }
+  }, [theirs]);   // eslint-disable-line react-hooks/exhaustive-deps
+  if (!orig || !f || theirs) return null;
   const set = (p: Partial<Form>) => setF({ ...f, ...p });
   const inv = (field: Field) => (err?.field === field ? { "aria-invalid": true as const, "aria-describedby": "e-err" } : {});
   // Arrow functions, not declarations: they keep TypeScript's narrowing of `orig` and `f` from the guard above.

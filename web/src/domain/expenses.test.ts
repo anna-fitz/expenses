@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Expense, Merchant } from "@/data/types";
-import { editChanges, sameMonth, storeDuplicate, summaryOf } from "./expenses";
+import { canEdit, editChanges, ownerOf, sameMonth, storeDuplicate, summaryOf } from "./expenses";
 
 const M: Record<string, Merchant> = {
   costco: { name: "Costco", category: "Groceries" }, "costco-old": { name: "Costco Old", hidden: true, mergedInto: "costco" }, target: { name: "Target" },
@@ -38,4 +38,15 @@ describe("edits", () => {
     expect(editChanges(orig, { ...same, merchant: "Target", amountCents: 2500 }, M)).toEqual([
       { field: "amountCents", from: 4512, to: 2500 }, { field: "merchant", from: "Costco", to: "Target" }]));
   it("summarizes for the log", () => expect(summaryOf(orig)).toEqual({ amountCents: 4512, merchant: "Costco Old", payer: "p1" }));
+});
+
+describe("who can edit", () => {
+  it("is whoever logged it, even when the other person paid", () => {
+    expect(canEdit(ex({ payer: "p2", createdBy: "p1" }), "p1")).toBe(true);
+    expect(canEdit(ex({ payer: "p1", createdBy: "p2" }), "p1")).toBe(false);
+  });
+  it("falls back to the payer for older expenses without createdBy", () => {
+    expect(ownerOf(ex({ payer: "p2" }))).toBe("p2");
+    expect(canEdit(ex({ payer: "p2" }), "p1")).toBe(false);
+  });
 });

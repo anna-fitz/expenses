@@ -20,6 +20,7 @@ export function SettingsScreen() {
     ["bills", C.bills, billsCount(bills.filter((x) => x.active !== false).length)],
     ["reminder", C.reminderTitle, reminderSummary(s.nudgeDays, s.nudgeCents)],
     ["buckets", C.bucketsTitle, ""],
+    ["history", C.historyTitle, ""],
   ];
   return (
     <div className="flex flex-col gap-6">

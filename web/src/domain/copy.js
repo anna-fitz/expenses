@@ -96,6 +96,7 @@ export const mergeHelp = name => `Past expenses at ${name} will show and count u
 export const billExists = name => `There’s already a bill called ${name}`;
 
 export const dupLine = (who, amount, kind, name, date) => `${who} added ${amount} ${kind === "bill" ? "for" : "at"} ${name} on ${date}. Add this one too?`;
+export const notYours = who => `Only ${who} can change or delete this one. They logged it.`;
 
 export const venmoHelp = other => `The part after @. ${other}’s phone uses this to pay or request from you.`;
 
@@ -257,6 +258,11 @@ export const C = {
   howUsual: "How is usual worked out?", usualExplained: "Usual is the middle value of the six months before this one, leaving out one-offs.",
   prevMonth: "Previous month", nextMonth: "Next month", thisMonth: "This month", needsWants: "Needs vs. wants",
   needs: "Needs", wants: "Wants", need: "Need", want: "Want", bucketsTitle: "Needs and wants",
+  historyTitle: "Spending history", historyPick: "Choose the spreadsheet", historyReading: "Reading the spreadsheet…",
+  historyNone: "Insights starts with the first month logged in the app. Add the old settle-up spreadsheet to see the years before it.",
+  historyBad: "That file couldn’t be read. Choose the old settle-up spreadsheet, saved as .xlsx.",
+  historyKeeps: "Only monthly totals by category and bill are saved. Store names, notes and who paid stay in the spreadsheet.",
+  historySave: "Add to Insights", historyReplace: "Replace the history", historySaved: "History added to Insights.", historyCancel: "Choose a different file",
   bucketsHelp: "Changes here apply to both of you. Insights recalculates every month, including before the app.", saved: "Saved.",
   oneOff: "One-off purchase", oneOffHelp: "Big, rare purchases like a dishwasher. Still counts toward settling up; Insights lists it separately.",
   oneOffShort: "One-off", yes: "Yes", monthCol: "Month", needsTrend: "See the last 12 months",
@@ -321,3 +327,10 @@ export const C = {
 /* ---------- Profile ---------- */
 export const COLOR_NAMES = { blue: "Blue", orange: "Orange", aqua: "Aqua", magenta: "Magenta", green: "Green", violet: "Violet" };
 export const colorMoved = (partner, colorName) => `${partner} picked this color too, so yours shows as ${colorName} for now.`;
+
+// Settings → Spending history
+export const historyHas = (first, through) => `Insights includes monthly totals from ${monthLabel(first)} through ${monthLabel(through)}, from the old spreadsheet.`;
+export const historyFound = (n, tabs, first, through, total) =>
+  `${n.toLocaleString("en-US")} expenses from ${tabs} settle-ups, ${monthLabel(first)} to ${monthLabel(through)}: ${fmt(total)} in all.`;
+export const historyOneOffs = n => `${n} big, rare purchases are counted as one-offs, like a fence or a dishwasher.`;
+export const historyDropped = (n, month) => `${n} ${n === 1 ? "expense" : "expenses"} from ${monthLabel(month)} on ${n === 1 ? "is" : "are"} left out, because the app already covers that month.`;

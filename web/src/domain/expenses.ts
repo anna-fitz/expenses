@@ -7,6 +7,9 @@ export const EDIT_FIELDS = ["amountCents", "payer", "merchant", "category", "dat
 export type Change = { field: string; from: unknown; to: unknown };
 export type Summary = { amountCents: number; merchant: string; payer: Person };
 export const summaryOf = (e: Pick<Expense, "amountCents" | "merchant" | "payer">): Summary => ({ amountCents: e.amountCents, merchant: e.merchant, payer: e.payer });
+// Only whoever logged an expense can change or delete it. Older expenses without createdBy belong to the payer.
+export const ownerOf = (e: Pick<Expense, "createdBy" | "payer">): Person => e.createdBy || e.payer;
+export const canEdit = (e: Pick<Expense, "createdBy" | "payer">, me: Person) => ownerOf(e) === me;
 
 const gap = (x: string, y: string) => (x <= y ? daysBetween(x, y) : daysBetween(y, x));
 const newest = (x: { createdAt?: number }, y: { createdAt?: number }) => (y.createdAt || 0) - (x.createdAt || 0);

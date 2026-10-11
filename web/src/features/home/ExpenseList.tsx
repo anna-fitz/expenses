@@ -1,9 +1,11 @@
+import { toast } from "sonner";
 import { openSheet } from "@/app/route";
 import { ExpenseRow } from "@/components/ExpenseRow";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useData } from "@/data/data";
-import { C, dayLabel, emptyBody } from "@/domain/copy.js";
+import { C, dayLabel, emptyBody, notYours } from "@/domain/copy.js";
+import { canEdit, ownerOf } from "@/domain/expenses";
 import { groupByDate, sortExpenses } from "@/domain/money";
 
 export function ExpenseList() {
@@ -19,7 +21,7 @@ export function ExpenseList() {
       {groupByDate(sortExpenses(expenses)).map(([date, list]) => (
         <section key={date} className="group flex flex-col gap-1.5">
           <h2 className="text-label text-muted-foreground">{dayLabel(date)}</h2>
-          <ul className="divide-y overflow-hidden rounded-xl border bg-card">{list.map((e) => <ExpenseRow key={e.id} e={e} onOpen={() => openSheet(`#/edit/${encodeURIComponent(e.id)}`)} />)}</ul>
+          <ul className="divide-y overflow-hidden rounded-xl border bg-card">{list.map((e) => <ExpenseRow key={e.id} e={e} onOpen={() => (canEdit(e, people.me) ? openSheet(`#/edit/${encodeURIComponent(e.id)}`) : toast(notYours(people.names[ownerOf(e)] || C.someone)))} />)}</ul>
         </section>
       ))}
     </div>
