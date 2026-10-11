@@ -5,7 +5,7 @@ import { Sheet } from "@/components/Sheet";
 import { Button } from "@/components/ui/button";
 import { C, fmt, monthShort } from "@/domain/copy.js";
 import { BUCKETS, shiftMonth, type Figures } from "@/domain/insights";
-import { BUCKET_COLOR, BUCKET_LABEL } from "./NeedsCard";
+import { BUCKET_COLOR, BUCKET_LABEL } from "./parts";
 
 // Twelve months of Bills / Needs / Wants: a stacked chart, then the same numbers as a table. Tap a bar or a month to label it on the chart.
 export function NeedsSheet({ month, get }: { month: string; get: (m: string) => Figures | null }) {

@@ -1,7 +1,7 @@
 // A small bar chart (stacked when a bar has several segments). Thin bars, 2px gaps between segments, recessive gridlines,
 // the selected bar labelled directly, and a legend. It's role="img" with a full text label: the table beside it carries the values.
 export type Segment = { value: number; color: string };
-export type Bar = { key: string; label: string; segments: Segment[] };
+export type Bar = { key: string; label: string; segments: Segment[]; partial?: boolean };   // partial: a period still running (drawn lighter)
 export function BarChart({ id, title, bars, selected, legend, format, onSelect }: {
   id: string; title: string; bars: Bar[]; selected: number; legend: { label: string; color: string }[]; format: (v: number) => string; onSelect?: (i: number) => void;
 }) {
@@ -20,9 +20,9 @@ export function BarChart({ id, title, bars, selected, legend, format, onSelect }
               {b.segments.filter((s) => s.value > 0).map((s, j) => {
                 const h = Math.max(1, (s.value / max) * H - 2);
                 y -= h + 2;
-                return <rect key={j} x={x} y={y + 2} width={bw} height={h} rx={2} fill={s.color} />;
+                return <rect key={j} x={x} y={y + 2} width={bw} height={h} rx={2} fill={s.color} fillOpacity={b.partial ? 0.4 : 1} stroke={b.partial ? s.color : undefined} strokeWidth={b.partial ? 1.5 : undefined} />;
               })}
-              <text x={x + bw / 2} y={top + H + 12} textAnchor="middle" fontSize={8} fill={i === selected ? "var(--foreground)" : "var(--muted-foreground)"} fontWeight={i === selected ? 600 : 400}>{b.label.slice(0, 3)}</text>
+              <text x={x + bw / 2} y={top + H + 12} textAnchor="middle" fontSize={8} fill={i === selected ? "var(--foreground)" : "var(--muted-foreground)"} fontWeight={i === selected ? 600 : 400}>{b.label}</text>
               {i === selected && totals[i] > 0 && (
                 <text x={Math.min(Math.max(x + bw / 2, 24), W - 24)} y={Math.max(10, top + H - (totals[i] / max) * H - 4)} textAnchor="middle" fontSize={10} fill="var(--foreground)">{format(totals[i])}</text>
               )}

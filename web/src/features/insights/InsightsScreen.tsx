@@ -1,17 +1,14 @@
 import { useRef } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { openSheet, type Route } from "@/app/route";
 import { useScreen } from "@/app/useScreen";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/native-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useData } from "@/data/data";
 import { C, backTo, monthLabel } from "@/domain/copy.js";
 import { categoryRows, figuresFor, monthOf, shiftMonth, today, usual, usualMix } from "@/domain/insights";
 import { cn } from "@/lib/utils";
 import { CategoryCard } from "./CategoryCard";
-import { NeedsCard } from "./NeedsCard";
 import { NeedsSheet } from "./NeedsSheet";
 import { OnTrackCard } from "./OnTrackCard";
 import { useExpensesSince, useHistory } from "./useInsightsData";
@@ -53,30 +50,32 @@ export function InsightsScreen({ route }: { route: Route }) {
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="icon" className="size-11" data-act="month-prev" aria-label={year ? C.prevYear : C.prevMonth} disabled={atStart} onClick={() => go(prev)}>
           <ChevronLeft className="size-5" aria-hidden="true" /></Button>
-        <p id="month-label" aria-live="polite" className="flex-1 text-center text-heading">{year ?? monthLabel(m)}</p>
+        {/* The month (or year) name is the picker: a native select laid over it, so phones get their own wheel. */}
+        <div className="relative flex flex-1 justify-center rounded-md focus-within:ring-2 focus-within:ring-ring">
+          <span className="inline-flex items-center gap-1 border-b border-dashed border-muted-foreground text-heading" aria-hidden="true">
+            <span id="month-label">{year ?? monthLabel(m)}</span><ChevronDown className="size-4 text-muted-foreground" /></span>
+          <select id="month-pick" aria-label={year ? C.jumpToYear : C.jumpTo} className="absolute inset-0 w-full cursor-pointer opacity-0" value={year ? String(year) : m}
+            onChange={(e) => go(e.target.value)}>
+            {year ? [...new Set(months.map((k) => k.slice(0, 4)))].map((y) => <option key={y} value={y}>{y}</option>)
+              : [...new Set(months.map((k) => k.slice(0, 4)))].map((y) => (
+                <optgroup key={y} label={y}>{months.filter((k) => k.startsWith(y)).map((k) => <option key={k} value={k}>{monthLabel(k)}</option>)}</optgroup>
+              ))}
+          </select>
+        </div>
         <Button variant="ghost" size="icon" className="size-11" data-act="month-next" aria-label={year ? C.nextYear : C.nextMonth} disabled={atEnd} onClick={() => go(next)}>
           <ChevronRight className="size-5" aria-hidden="true" /></Button>
       </div>
-      {!year && months.length > 2 && (
-        <div className="flex items-center gap-2">
-          <Label htmlFor="month-pick" className="shrink-0 text-caption text-muted-foreground">{C.jumpTo}</Label>
-          <NativeSelect id="month-pick" className="h-11 text-body" value={m} onChange={(e) => go(e.target.value)}>
-            {[...new Set(months.map((k) => k.slice(0, 4)))].map((y) => (
-              <optgroup key={y} label={y}>{months.filter((k) => k.startsWith(y)).map((k) => <option key={k} value={k}>{monthLabel(k)}</option>)}</optgroup>
-            ))}
-          </NativeSelect>
-        </div>
-      )}
-      {!year && m !== current && <Button variant="link" className="h-11 self-center text-body" data-act="month-now" onClick={() => go(current)}>{backTo(current)}</Button>}
+      {!year && m !== current && <Button variant="link" className="-mt-2 h-9 self-center text-caption" data-act="month-now" onClick={() => go(current)}>{backTo(current)}</Button>}
       {!ready ? <Skeleton className="h-40 rounded-xl" /> : year ? (
-        <YearView year={year} current={current} get={get} firstYear={firstYear} items={all ?? null} />
+        <YearView year={year} current={current} get={get} firstYear={firstYear} items={all ?? null} go={go} />
       ) : (
         <>
           <OnTrackCard month={m} current={m === current} day={Number(now.slice(8, 10))} f={get(m)}
             usualEvery={usual(m, get, (f) => f.everyday)} bills={bills} lastYear={get(shiftMonth(m, -12))} prev={get(shiftMonth(m, -1))}
-            oneOffItems={monthItems?.filter((x) => x.oneOff && !x.billId) ?? null} />
-          <CategoryCard rows={categoryRows(m, get)} items={monthItems?.filter((x) => !x.oneOff && !x.billId) ?? null} />
-          <NeedsCard f={get(m)} mix={usualMix(m, get)} onOpen={() => openSheet(`#/insights/${m}/needs`)} />
+            oneOffItems={monthItems?.filter((x) => x.oneOff && !x.billId) ?? null}
+            spark={Array.from({ length: 12 }, (_, i) => get(shiftMonth(m, i - 11))?.everyday ?? null)} />
+          <CategoryCard f={get(m)} rows={categoryRows(m, get)} mix={usualMix(m, get)} map={map} items={monthItems?.filter((x) => !x.oneOff && !x.billId) ?? null}
+            onOpen={() => openSheet(`#/insights/${m}/needs`)} />
           {route.id === "needs" && <NeedsSheet month={m} get={get} />}
         </>
       )}

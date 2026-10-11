@@ -1,15 +1,19 @@
-import { Clock, Minus, TrendingDown, TrendingUp } from "lucide-react";
+import { ArrowDown, ArrowUp } from "lucide-react";
 import type { Bill, Expense } from "@/data/types";
-import { C, billsIn, fmt, lastYearLine, oneOffsLine, onTrackLine, paceLine, pastBills, pastLine, pastOneOffs } from "@/domain/copy.js";
+import { C, billLine, billsInLabel, billsSoFar, fmtRound, lastMonthName, lastYearLine, oneOffsLine, onTrackLine, paceChip, paceLine, pastLine,
+  pastOneOffs, sparkLabel, usualByDay, usualIs, usualMonthLabel, vsUsualChip } from "@/domain/copy.js";
 import { EMPTY, daysIn, pace, type Figures } from "@/domain/insights";
-import { cn } from "@/lib/utils";
-import { BillsDetail } from "./BillsDetail";
-import { OneOffs } from "./OneOffs";
+import { MonthItems } from "./MonthItems";
+import { CardLabel, Chip, Disclosure, Hero, PaceMeter, Sparkline } from "./parts";
 
-// The headline: everyday spending against your usual pace (bills and one-offs shown, not judged).
-// `lastYear` is the same month a year earlier, when there's data for it: "usual" can't see seasons, this can.
-export function OnTrackCard({ month, current, day, f, usualEvery, bills, lastYear, prev, oneOffItems }: {
-  month: string; current: boolean; day: number; f: Figures | null; usualEvery: number | null; bills: Bill[]; lastYear: Figures | null; prev: Figures | null; oneOffItems: Expense[] | null;
+// Bills that used to be split before the app (housing, mostly) have no bill in the app to take a name from.
+const OLD_BILLS: Record<string, string> = { mortgage: "Mortgage", hoa: "HOA", rent: "Rent", "property-tax": "Property tax" };
+
+// The headline: everyday spending as one large figure, its comparison as a chip, a labelled pace meter (this month) and
+// a 12-month sparkline; then bills as pills that fill in as they arrive, and one-offs. Each opens to its detail.
+export function OnTrackCard({ month, current, day, f, usualEvery, bills, lastYear, prev, oneOffItems, spark }: {
+  month: string; current: boolean; day: number; f: Figures | null; usualEvery: number | null; bills: Bill[]; lastYear: Figures | null;
+  prev: Figures | null; oneOffItems: Expense[] | null; spark: (number | null)[];
 }) {
   const how = (
     <details id="usual-how" className="text-caption text-muted-foreground">
@@ -17,43 +21,109 @@ export function OnTrackCard({ month, current, day, f, usualEvery, bills, lastYea
       <p>{C.usualExplained}</p>
     </details>
   );
-  const ly = lastYear && <p id="ontrack-lastyear" className="text-caption">{lastYearLine(month.replace(/^\d+/, (y) => String(+y - 1)), fmt(lastYear.everyday))}</p>;
   if (!current && !f) return <section id="ontrack" className="rounded-xl border bg-card p-4"><p id="ontrack-line">{C.noMonth}</p>{how}</section>;
   const x = f || EMPTY;
-  if (usualEvery == null) return <section id="ontrack" className="flex flex-col gap-1 rounded-xl border bg-card p-4"><p id="ontrack-line">{C.notEnough}</p>{ly}{how}</section>;
-  if (!current) {
+  const ly = lastYear && <p id="ontrack-lastyear" className="text-caption text-muted-foreground">{lastYearLine(month, fmtRound(lastYear.everyday))}</p>;
+
+  // The headline figure and its comparison
+  let head;
+  if (usualEvery == null) {
+    head = (
+      <>
+        <CardLabel id="ontrack-h">{C.everyday}</CardLabel>
+        <Hero id="ontrack-amount" value={fmtRound(x.everyday)} />
+        <p id="ontrack-line" className="text-caption text-muted-foreground">{C.notEnough}</p>
+      </>
+    );
+  } else if (!current) {
     const pct = Math.round(((x.everyday - usualEvery) / usualEvery) * 100);
-    return (
-      <section id="ontrack" className="flex flex-col gap-1 rounded-xl border bg-card p-4">
-        <p id="ontrack-line" className="font-medium">{pastLine(fmt(x.everyday), fmt(usualEvery), pct)}</p>
-        {ly}
-        <BillsDetail line={pastBills(fmt(x.bills))} month={month} current={false} f={x} prev={prev} lastYear={lastYear} bills={bills} className="text-caption text-muted-foreground" />
-        <OneOffs f={x} items={oneOffItems} line={pastOneOffs(x.oneOffs ? fmt(x.oneOffs) : null)} className="text-caption text-muted-foreground" />
-        {how}
-      </section>
+    head = (
+      <>
+        <CardLabel id="ontrack-h" aside={<Chip id="ontrack-status">{pct !== 0 && (pct > 0 ? <ArrowUp className="size-3" aria-hidden="true" /> : <ArrowDown className="size-3" aria-hidden="true" />)}{vsUsualChip(pct)}</Chip>}>{C.everyday}</CardLabel>
+        <Hero id="ontrack-amount" value={fmtRound(x.everyday)} />
+        <p className="text-caption text-muted-foreground">{usualIs(fmtRound(usualEvery))}</p>
+        <p id="ontrack-line" className="sr-only">{pastLine(fmtRound(x.everyday), fmtRound(usualEvery), pct)}</p>
+      </>
+    );
+  } else {
+    const p = pace(x.everyday, usualEvery, day, daysIn(month)), diff = fmtRound(Math.abs(x.everyday - p.byNow));
+    const Arrow = p.status === "high" ? ArrowUp : p.status === "low" ? ArrowDown : null;
+    head = (
+      <>
+        <CardLabel id="ontrack-h" aside={<Chip id="ontrack-status" tone={p.status === "high" ? "warn" : "plain"}>{Arrow && <Arrow className="size-3" aria-hidden="true" />}{paceChip(p.status, diff)}</Chip>}>{C.everyday}</CardLabel>
+        <Hero id="ontrack-amount" value={fmtRound(x.everyday)} unit={C.soFar} />
+        <PaceMeter spent={x.everyday} byNow={p.byNow} month={usualEvery} over={x.everyday > usualEvery}
+          label={usualByDay(day)} endLabel={usualMonthLabel(fmtRound(usualEvery))} />
+        <p id="ontrack-line" className="sr-only">{paceLine(p.status, fmtRound(x.everyday), diff, day)}. {onTrackLine(fmtRound(x.everyday), fmtRound(p.byNow))}</p>
+      </>
     );
   }
-  const p = pace(x.everyday, usualEvery, day, daysIn(month));
-  const word = { early: C.earlyDays, on: C.onTrack, high: C.runningHigh, low: C.runningLow }[p.status];
-  const Icon = { early: Clock, on: Minus, high: TrendingUp, low: TrendingDown }[p.status];
-  // The track is a usual month, or this month once it's gone past that, so going over shows.
-  const track = Math.max(usualEvery, x.everyday, 1), fill = (x.everyday / track) * 100, mark = (p.byNow / track) * 100;
-  const active = bills.filter((b) => b.active !== false).sort((a, b) => a.order - b.order), got = active.filter((b) => (x.billsBy[b.id] || 0) > 0);
+
+  // Bills: pills for this month (filled once in), then each bill against last month and last year
+  const active = bills.filter((b) => b.active !== false).sort((a, b) => a.order - b.order);
+  const name = (id: string) => bills.find((b) => b.id === id)?.name || OLD_BILLS[id] || id;
+  const ids = [...new Set([...(current ? active.map((b) => b.id) : []), ...Object.keys(x.billsBy).filter((id) => x.billsBy[id] > 0)])];
+  const amt = (y: Figures | null, id: string) => (y?.billsBy[id] ? fmtRound(y.billsBy[id]) : null);
+  const got = active.filter((b) => (x.billsBy[b.id] || 0) > 0).length;
+  const billsHead = (
+    <span className="flex items-center justify-between gap-3">
+      <span className="text-label uppercase tracking-wide text-muted-foreground">{current ? billsInLabel(got, active.length) : C.bills}</span>
+      <span className="text-caption tabular-nums">{current ? billsSoFar(fmtRound(x.bills)) : fmtRound(x.bills)}</span>
+    </span>
+  );
   return (
-    <section id="ontrack" className={cn("flex flex-col gap-2 rounded-xl border p-4", p.status === "high" ? "border-warning-border bg-warning-bg text-warning-fg" : "bg-card")}>
-      <p className="flex items-center gap-2 text-heading">
-        <Icon className={cn("size-5", p.status === "high" && "text-warning-icon")} aria-hidden="true" /><span id="ontrack-status">{word}</span>
-        <span className="text-caption font-normal text-muted-foreground">· {C.everyday}</span>
-      </p>
-      <p id="ontrack-line" className="tabular-nums">{paceLine(p.status, fmt(x.everyday), fmt(Math.abs(x.everyday - p.byNow)), day)}</p>
-      <div role="img" aria-label={onTrackLine(fmt(x.everyday), fmt(p.byNow))} className="relative h-2 rounded-full bg-muted">
-        <span className="absolute inset-y-0 left-0 rounded-full bg-foreground" style={{ width: `${fill}%` }} />
-        <span aria-hidden="true" className="absolute -top-1 h-4 w-0.5 bg-muted-foreground" style={{ left: `${mark}%` }} />
+    <section id="ontrack" aria-labelledby="ontrack-h" className="flex flex-col gap-3 rounded-xl border bg-card p-4">
+      {head}
+      <div className="flex items-end justify-between gap-3">
+        <div className="min-w-0">{ly}</div>
+        <Sparkline values={spark} label={sparkLabel} />
       </div>
-      {ly}
-      <BillsDetail line={billsIn(got.length, active.length, active.filter((b) => !got.includes(b)).map((b) => b.name), fmt(x.bills))} month={month} current f={x} prev={prev} lastYear={lastYear} bills={bills} className="text-caption" />
-      {x.oneOffs > 0 && <OneOffs f={x} items={oneOffItems} line={oneOffsLine(fmt(x.oneOffs), x.oneOffCount)} className="text-caption" />}
       {how}
+      <div className="flex flex-col gap-1 border-t pt-3">
+        {current && active.length > 0 && (
+          <ul id="bill-pills" className="flex flex-wrap gap-1.5 pb-1" aria-label={billsInLabel(got, active.length)}>
+            {active.map((b) => {
+              const isIn = (x.billsBy[b.id] || 0) > 0;
+              return <li key={b.id} data-in={isIn} className={isIn ? "rounded-full bg-chart-1 px-2.5 py-1 text-label text-white"
+                : "rounded-full border border-dashed border-muted-foreground px-2.5 py-1 text-label text-muted-foreground"}>
+                {b.name}<span className="sr-only">{isIn ? `, ${C.billIn}` : `, ${C.billToCome}`}</span></li>;
+            })}
+          </ul>
+        )}
+        {ids.length ? (
+          <Disclosure id="ontrack-bills" summary={billsHead}>
+            <ul className="flex flex-col gap-1 border-l-2 pl-3 text-caption tabular-nums">
+              {ids.map((id) => <li key={id} data-bill={id}>{billLine(name(id), amt(x, id), amt(prev, id), amt(lastYear, id), lastMonthName(month))}</li>)}
+            </ul>
+          </Disclosure>
+        ) : <div id="ontrack-bills" className="flex min-h-11 items-center">{billsHead}</div>}
+        {(x.oneOffs > 0 || !current) && (
+          <OneOffsRow f={x} items={oneOffItems} line={current ? oneOffsLine(fmtRound(x.oneOffs), x.oneOffCount) : pastOneOffs(x.oneOffs ? fmtRound(x.oneOffs) : null)} />
+        )}
+      </div>
     </section>
+  );
+}
+
+// What the one-offs were: the purchases for months in the app, the categories for summary months. `line` is "One-offs: $498".
+export function OneOffsRow({ f, items, line, id = "ontrack-oneoffs" }: { f: Figures; items: Expense[] | null; line: string; id?: string }) {
+  const [label, ...rest] = line.split(": ");
+  const head = (
+    <span className="flex items-center justify-between gap-3">
+      <span className="text-label uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className="text-caption tabular-nums">{rest.join(": ")}</span>
+    </span>
+  );
+  if (!f.oneOffs) return <div id={id} className="flex min-h-11 items-center">{head}</div>;
+  return (
+    <Disclosure id={id} summary={head}>
+      {items?.length ? <MonthItems items={items} /> : (
+        <ul className="flex flex-col gap-1 border-l-2 pl-3 text-caption tabular-nums">
+          {Object.entries(f.oneOffBy).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).map(([c, v]) => (
+            <li key={c} className="flex gap-2"><span className="flex-1">{c}</span><span>{fmtRound(v)}</span></li>
+          ))}
+        </ul>
+      )}
+    </Disclosure>
   );
 }

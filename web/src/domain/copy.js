@@ -278,7 +278,9 @@ export const C = {
   notEnough: "Not enough history yet to say what’s usual.", noMonth: "No spending logged for this month.",
   howUsual: "How is usual worked out?", usualExplained: "Usual is the middle value of the six months before this one, leaving out one-offs.",
   prevMonth: "Previous month", nextMonth: "Next month", thisMonth: "This month", needsWants: "Where it went", byCategory: "Everyday spending by category", allCategories: "Show every category",
-  viewMonth: "Month", viewYear: "Year", jumpTo: "Go to a month", prevYear: "Previous year", nextYear: "Next year", yearsTable: "Every year", yearCol: "Year", soFar: "so far",
+  billIn: "in", billToCome: "still to come", usuallyPct: "usually", usualWord: "Usual",
+  byCategoryShort: "By category", yearsChartTitle: "Everyday spending, bills and one-offs by year", showTable: "Show as a table",
+  viewMonth: "Month", viewYear: "Year", jumpTo: "Go to a month", jumpToYear: "Go to a year", prevYear: "Previous year", nextYear: "Next year", yearsTable: "Every year", yearCol: "Year", soFar: "so far",
   yearBills: "Bills", yearOneOffs: "One-offs", byCategoryYear: "Everyday spending by category, against the year before",
   needs: "Needs", wants: "Wants", need: "Need", want: "Want", bucketsTitle: "Needs and wants",
   historyTitle: "Spending history", historyPick: "Choose the spreadsheet", historyReading: "Reading the spreadsheet…",
@@ -378,3 +380,23 @@ export const lastMonthName = m => `last ${parseISO(`${m}-01`).toLocaleDateString
 export const settleUpsFound = (n, first, last, total) => `${n} settle-ups from ${first} to ${last}, ${total} in all. Each shows what was paid and settled; the expenses stay in the spreadsheet.`;
 export const settleUpsHas = n => `History has ${n} settle-ups from the spreadsheet.`;
 export const importedSettle = n => `From the old spreadsheet. Its ${n} expense${n === 1 ? "" : "s"} stay there, so only the totals are here.`;
+
+// Insights cards: whole dollars in summaries (cents stay in expense lists), short chips, labelled marks.
+export const fmtRound = c => (c < 0 ? "-" : "") + "$" + Math.round(Math.abs(c) / 100).toLocaleString("en-US");
+export function paceChip(status, diff) {
+  if (status === "early") return "Early days";
+  if (status === "on") return "On track";
+  return `${diff} ${status === "high" ? "over" : "under"} pace`;
+}
+export const usualByDay = day => `usual by the ${nth(day)}`;
+export const usualMonthLabel = amount => `usual month ${amount}`;
+export const vsUsualChip = pct => pct === 0 ? "About usual" : `${Math.abs(pct)}% ${pct > 0 ? "over" : "under"} usual`;
+export const usualIs = amount => `Usual ${amount}`;
+export const billsInLabel = (n, total) => total ? `Bills · ${n} of ${total} in` : "Bills";
+export const billsSoFar = amount => `${amount} so far`;
+export const sparkLabel = "Everyday spending, last 12 months";
+export const changeChip = pct => pct == null ? "New" : pct === 0 ? "Same" : `${pct > 0 ? "+" : "−"}${Math.abs(pct)}%`;
+export const yearLabel = (year, partial, through) => partial ? `${year} so far, through ${through}` : `${year}`;
+export const vsYearChip = (pct, prevYear) => pct == null ? `No ${prevYear} to compare` : pct === 0 ? `Same as ${prevYear}` : `${Math.abs(pct)}% ${pct > 0 ? "more" : "less"} than ${prevYear}`;
+export const prevYearIs = (prevYear, amount, partial) => `${partial ? `Same months of ${prevYear}` : prevYear}: ${amount}`;
+export const dumbbellRow = (cat, now, before, year) => before ? `${cat}: ${now} in ${year}, ${before} in ${year - 1}` : `${cat}: ${now} in ${year}, none in ${year - 1}`;
