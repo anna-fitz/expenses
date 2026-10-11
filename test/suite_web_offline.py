@@ -98,6 +98,15 @@ def switchover_and_updates(b):
         close_sheet(pg); pg.wait_for_timeout(2500)
         check('updates: …and applies once Add closes', pg.evaluate('window.__marker') is None and pg.locator('.hero').count() == 1
               and pg.evaluate('navigator.serviceWorker.getRegistration().then(r => !r.waiting)'))
+        # A page with typed, unsaved text (Profile's Venmo field) isn't quiet, even after the field loses focus
+        pg.evaluate("location.hash = '#/settings/profile'"); pg.wait_for_selector('#p-venmo'); pg.wait_for_timeout(300)
+        pg.evaluate('window.__marker = 2'); pg.fill('#p-venmo', 'alex-typed'); pg.click('#screen-title')
+        open(SW, 'a', encoding='utf-8').write('// newer still\n')
+        pg.evaluate('navigator.serviceWorker.getRegistration().then(r => r.update())'); pg.wait_for_timeout(2500)
+        check('updates: a new version waits on a page like Profile, with its typed text', pg.evaluate('window.__marker') == 2
+              and pg.input_value('#p-venmo') == 'alex-typed')
+        pg.evaluate("location.hash = '#/settings'"); pg.wait_for_timeout(2500)
+        check('updates: …and applies back on a tab screen', pg.evaluate('window.__marker') is None)
         c.close()
     finally:
         open(SW, 'w', encoding='utf-8').write(real)
