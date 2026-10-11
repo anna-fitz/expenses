@@ -60,7 +60,9 @@ export function HistoryPage() {
     if (!preview) return;
     const kyle = bre === people.a ? people.b : people.a, b = writeBatch(db);
     b.set(doc(db, "config", "history"), preview.history);
-    if (withUps) ups.forEach((s, i) => b.set(doc(db, "settlements", `sheet-${String(i + 1).padStart(3, "0")}`), settlementDoc(s, bre, kyle, people.me)));
+    // Settle-ups can be added but never changed (security rules), so ones already imported are skipped; otherwise the whole save would be refused.
+    const have = new Set(settlements.map((s) => s.id));
+    if (withUps) ups.forEach((s, i) => { const id = `sheet-${String(i + 1).padStart(3, "0")}`; if (!have.has(id)) b.set(doc(db, "settlements", id), settlementDoc(s, bre, kyle, people.me)); });
     b.commit().catch(writeFailed);
     setPreview(null);
     toast(withUps && ups.length ? C.historyAndSettlesSaved : C.historySaved);
