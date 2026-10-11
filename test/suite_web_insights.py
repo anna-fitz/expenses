@@ -30,23 +30,26 @@ def run(b):
     check('insights: the month picker', pg.inner_text('#month-label') == 'August 2026' and pg.is_disabled('[data-act=month-next]')
           and pg.locator('[data-act=month-now]').count() == 0 and pg.get_attribute('[data-act=month-prev]', 'aria-label') == 'Previous month')
     check('insights: on track', pg.inner_text('#ontrack-status') == 'On track'
-          and pg.inner_text('#ontrack-line') == '$600.00 so far · usually $580.65 by now'
-          and pg.inner_text('#ontrack-bills') == 'Bills so far: $645.55 · usually $645.55 a month'
+          and pg.inner_text('#ontrack-line') == '$600.00 so far, about what you usually spend by the 20th'
+          and pg.inner_text('#ontrack-bills').startswith('Bills: 1 of ')
           and pg.inner_text('#ontrack-oneoffs') == 'One-offs: $1,508.49 · 1 purchase')
     pg.click('#usual-how summary')
     check('insights: how usual is worked out', 'middle value of the six months before this one' in pg.inner_text('#usual-how'))
     want = mix(M[1:], {})
     lines = {k: pg.inner_text(f'#needs [data-bucket={k}]') for k in ('bill', 'need', 'want')}
-    check('insights: needs vs. wants', lines == {'bill': f"Bills $645.55 · 23% (usual {want['bill']}%)",
-                                                   'need': f"Needs $1,908.49 · 69% (usual {want['need']}%)",
-                                                   'want': f"Wants $200.00 · 7% (usual {want['want']}%)"})
+    check('insights: needs vs. wants', lines == {'bill': f"Bills $645.55 · 23% of the month, usually {want['bill']}%",
+                                                   'need': f"Needs $1,908.49 · 69% of the month, usually {want['need']}%",
+                                                   'want': f"Wants $200.00 · 7% of the month, usually {want['want']}%"})
+    check('insights: categories against their usual', pg.inner_text('#cats-h') == 'Everyday spending by category'
+          and pg.inner_text('#cats [data-cat=Groceries]') == 'Groceries $400.00 · 33% less than usual ($600.00)'
+          and pg.inner_text('#cats [data-cat="Dining & takeout"]') == 'Dining & takeout $200.00 · 33% less than usual ($300.00)')
     check('insights: no who-paid anywhere', 'Alex' not in pg.inner_text('main') and 'Sam' not in pg.inner_text('main'))
     fs_batch(pg, [('expenses/i5', dict(exp_row('i5', 10000, 'p1', 'half', '2026-08-18')[1], category='Dining & takeout'))]); pg.wait_for_timeout(200)
-    check('insights: running high, with an icon', pg.inner_text('#ontrack-status') == 'Running high' and pg.locator('#ontrack svg').count() >= 1)
+    check('insights: running high, with an icon', pg.inner_text('#ontrack-status') == 'Over pace' and pg.locator('#ontrack svg').count() >= 1)
     # The 12-month sheet
     pg.click('[data-act=needs-open]'); pg.wait_for_selector('#needs-table'); pg.wait_for_timeout(250)
     rows = pg.evaluate("[...document.querySelectorAll('#needs-table tbody tr')].map(r => [...r.cells].map(c => c.textContent.trim()))")
-    check('insights: the sheet has a chart and a 12-month table', pg.inner_text('#layer-title') == 'Needs vs. wants' and pg.locator('#needs-chart svg').count() == 1
+    check('insights: the sheet has a chart and a 12-month table', pg.inner_text('#layer-title') == 'Where it went' and pg.locator('#needs-chart svg').count() == 1
           and len(rows) == 12 and rows[0][0] == 'Sep 2025' and rows[-1][0] == 'Aug 2026' and rows[-2] == ['Jul 2026', '$645.55', '$510.00', '$300.00']
           and rows[0][1:] == ['—', '—', '—'] and pg.evaluate('location.hash') == '#/insights/2026-08/needs')
     check('insights: the chart has a legend', [t.strip() for t in pg.inner_text('#needs-chart .legend').split('\n') if t.strip()] == ['Bills', 'Needs', 'Wants'])
@@ -54,16 +57,16 @@ def run(b):
     # A past month, and not enough history
     pg.click('[data-act=month-prev]'); pg.wait_for_timeout(200)
     check('insights: a past month from the summary', pg.inner_text('#month-label') == 'July 2026' and pg.evaluate('location.hash') == '#/insights/2026-07'
-          and pg.inner_text('#ontrack-line') == 'July 2026 · $810.00 everyday · usual $900.00 · 10% below usual'
+          and pg.inner_text('#ontrack-line') == '10% less than usual on everyday spending: $810.00, against a usual $900.00.'
           and pg.inner_text('#ontrack-bills') == 'Bills: $645.55' and pg.inner_text('#ontrack-oneoffs') == 'One-offs: none'
-          and pg.locator('[data-act=month-now]').count() == 1)
+          and pg.inner_text('[data-act=month-now]') == 'Back to August 2026')
     pg.evaluate("location.hash = '#/insights/2026-01'"); pg.wait_for_timeout(200)
     check('insights: not enough history', pg.inner_text('#ontrack').count('Not enough history yet to say what’s usual.') == 1 and pg.is_disabled('[data-act=month-prev]'))
     pg.click('[data-act=month-now]'); pg.wait_for_timeout(200)
     check('insights: back to this month', pg.inner_text('#month-label') == 'August 2026')
     # The mapping recalculates every month, history included
     fs_write(pg, 'config/settings', {'buckets': {'Dining & takeout': 'need'}}); pg.wait_for_timeout(200)
-    check('insights: the mapping recalculates history', pg.inner_text('#needs [data-bucket=want]') == 'Wants $0.00 · 0% (usual 0%)')
+    check('insights: the mapping recalculates history', pg.inner_text('#needs [data-bucket=want]') == 'Wants $0.00 · 0% of the month, usually 0%')
     c.close()
     c, pg = at(b, '2026-08-03')
     check('insights: early days', pg.inner_text('#ontrack-status') == 'Early days')

@@ -85,3 +85,18 @@ export function pace(spent: number, usualMonth: number, day: number, days: numbe
   return { status: "on", byNow };
 }
 export const pctOf = (part: number, whole: number) => (whole ? Math.round((part / whole) * 100) : 0);
+// Each category's usual: the middle value of the six months before m that have data, counting a month without it as zero.
+export function usualByCategory(m: string, get: (k: string) => Figures | null, cats: string[]): Record<string, number | null> {
+  return Object.fromEntries(cats.map((c) => [c, usual(m, get, (f) => f.byCategory[c] || 0)]));
+}
+// This month's categories, biggest first, each with its usual and how far off it is (a whole percentage; null without a usual).
+export type CategoryRow = { category: string; cents: number; usual: number | null; pct: number | null };
+export function categoryRows(m: string, get: (k: string) => Figures | null): CategoryRow[] {
+  const f = get(m);
+  if (!f) return [];
+  const cats = Object.keys(f.byCategory).filter((c) => f.byCategory[c] > 0), u = usualByCategory(m, get, cats);
+  return cats.map((c) => {
+    const cents = f.byCategory[c], us = u[c];
+    return { category: c, cents, usual: us, pct: us ? Math.round(((cents - us) / us) * 100) : null };
+  }).sort((a, b) => b.cents - a.cents);
+}

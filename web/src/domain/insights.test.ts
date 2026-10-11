@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Expense } from "@/data/types";
-import { EMPTY, bucketOf, daysIn, figuresFor, figuresFromExpenses, figuresFromHistory, median, pace, pctOf, shiftMonth, usual, usualMix, type HistoryDoc } from "./insights";
+import { EMPTY, bucketOf, categoryRows, daysIn, figuresFor, figuresFromExpenses, figuresFromHistory, median, pace, pctOf, shiftMonth, usual, usualByCategory, usualMix, type HistoryDoc } from "./insights";
 
 const e = (o: Partial<Expense>): Expense => ({ id: "x", amountCents: 0, payer: "p1", merchant: "Costco", category: "Groceries", date: "2026-08-05", split: "half", settled: false, ...o });
 const H: HistoryDoc = { through: "2026-07", months: {
@@ -48,4 +48,18 @@ describe("usual, pace, and mix", () => {
     expect([shiftMonth("2026-01", -1), shiftMonth("2026-12", 1), shiftMonth("2026-08", -13)]).toEqual(["2025-12", "2027-01", "2025-07"]);
     expect([daysIn("2026-02"), daysIn("2026-08"), pctOf(1, 3), pctOf(1, 0)]).toEqual([28, 31, 33, 0]);
   });
+});
+
+describe("categories", () => {
+  const f = (cats: Record<string, number>) => figuresFromHistory({ cats, bills: {} }, {});
+  const data: Record<string, ReturnType<typeof f>> = {
+    "2026-01": f({ Groceries: 600, Pets: 100 }), "2026-02": f({ Groceries: 620 }), "2026-03": f({ Groceries: 640, Pets: 150 }),
+    "2026-04": f({ Groceries: 630, Coffee: 20 }),
+  };
+  it("biggest first, each against its usual (a month without the category counts as zero)", () => {
+    expect(categoryRows("2026-04", (k) => data[k] || null)).toEqual([
+      { category: "Groceries", cents: 630, usual: 620, pct: 2 }, { category: "Coffee", cents: 20, usual: 0, pct: null }]);
+    expect(usualByCategory("2026-04", (k) => data[k] || null, ["Pets"])).toEqual({ Pets: 100 });
+  });
+  it("needs three earlier months for a usual", () => expect(categoryRows("2026-03", (k) => data[k] || null)[1]).toEqual({ category: "Pets", cents: 150, usual: null, pct: null }));
 });

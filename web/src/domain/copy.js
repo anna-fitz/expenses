@@ -173,14 +173,35 @@ export const bringBackName = name => `Bring back ${name}`;
 export const billSub = (amount, who) => `${amount} · usually ${who}`;
 
 /* ---------- Insights ---------- */
+const nth = n => n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th");
+const andList = xs => xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`;
+// This month's headline under the pace word. `diff` is the gap to the usual pace, already formatted.
+export function paceLine(status, spent, diff, day) {
+  if (status === "early") return `${spent} so far. It’s too early in the month to compare.`;
+  if (status === "on") return `${spent} so far, about what you usually spend by the ${nth(day)}`;
+  return `${spent} so far, ${diff} ${status === "high" ? "more" : "less"} than you usually spend by the ${nth(day)}`;
+}
 export const onTrackLine = (spent, byNow) => `${spent} so far · usually ${byNow} by now`;
-export const billsSoFar = (spent, usual) => usual ? `Bills so far: ${spent} · usually ${usual} a month` : `Bills so far: ${spent}`;
+// Bills land at different times, so this month's bills are counted in, not totalled against a month's worth.
+export function billsIn(n, total, missing, amount) {
+  if (!total) return `Bills: ${amount}`;
+  if (n >= total) return `Bills: all ${total} in · ${amount}`;
+  return missing.length > 3 ? `Bills: ${n} of ${total} in so far` : `Bills: ${n} of ${total} in · ${andList(missing)} still to come`;
+}
 export const oneOffsLine = (amount, n) => `One-offs: ${amount} · ${n} purchase${n === 1 ? "" : "s"}`;
-export const pastLine = (month, spent, usual, pct) =>
-  `${month} · ${spent} everyday · usual ${usual} · ${pct === 0 ? "about usual" : `${Math.abs(pct)}% ${pct > 0 ? "above" : "below"} usual`}`;
+export const pastLine = (spent, usual, pct) =>
+  `${pct === 0 ? "About usual" : `${Math.abs(pct)}% ${pct > 0 ? "more" : "less"} than usual`} on everyday spending: ${spent}, against a usual ${usual}.`;
 export const pastBills = amount => `Bills: ${amount}`;
 export const pastOneOffs = amount => amount ? `One-offs: ${amount}` : "One-offs: none";
-export const bucketLine = (label, amount, pct, usual) => usual == null ? `${label} ${amount} · ${pct}%` : `${label} ${amount} · ${pct}% (usual ${usual}%)`;
+export const lastYearLine = (m, amount) => `Last ${parseISO(`${m}-01`).toLocaleDateString("en-US", { month: "long" })}: ${amount} everyday`;
+export const backTo = m => `Back to ${monthLabel(m)}`;
+export const bucketLine = (label, amount, pct, usual) => usual == null ? `${label} ${amount} · ${pct}% of the month` : `${label} ${amount} · ${pct}% of the month, usually ${usual}%`;
+// One category against its usual. Within 15% either way counts as about usual.
+export function categoryLine(cat, amount, usual, pct) {
+  if (usual == null) return `${cat} ${amount}`;
+  if (!usual) return `${cat} ${amount} · usually nothing`;
+  return Math.abs(pct) < 15 ? `${cat} ${amount} · about usual` : `${cat} ${amount} · ${Math.abs(pct)}% ${pct > 0 ? "more" : "less"} than usual (${usual})`;
+}
 export const monthLabel = m => parseISO(`${m}-01`).toLocaleDateString("en-US", { month: "long", year: "numeric" });
 export const monthShort = m => parseISO(`${m}-01`).toLocaleDateString("en-US", { month: "short" });
 
@@ -253,10 +274,10 @@ export const C = {
   add: "Add expense",
   installTitle: "Add Expenses to your Home Screen 📲", installIos: "Tap Share, then Add to Home Screen. It opens full screen, like an app.",
   installOther: "Open the browser menu, then Install app or Add to Home screen.",
-  onTrack: "On track", runningHigh: "Running high", runningLow: "Running low", earlyDays: "Early days", everyday: "Everyday spending",
+  onTrack: "On track", runningHigh: "Over pace", runningLow: "Under pace", earlyDays: "Early days", everyday: "Everyday spending",
   notEnough: "Not enough history yet to say what’s usual.", noMonth: "No spending logged for this month.",
   howUsual: "How is usual worked out?", usualExplained: "Usual is the middle value of the six months before this one, leaving out one-offs.",
-  prevMonth: "Previous month", nextMonth: "Next month", thisMonth: "This month", needsWants: "Needs vs. wants",
+  prevMonth: "Previous month", nextMonth: "Next month", thisMonth: "This month", needsWants: "Where it went", byCategory: "Everyday spending by category", allCategories: "Show every category",
   needs: "Needs", wants: "Wants", need: "Need", want: "Want", bucketsTitle: "Needs and wants",
   historyTitle: "Spending history", historyPick: "Choose the spreadsheet", historyReading: "Reading the spreadsheet…",
   historyNone: "Insights starts with the first month logged in the app. Add the old settle-up spreadsheet to see the years before it.",

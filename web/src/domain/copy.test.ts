@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { C, activityLine, addNewStore, balanceLine, emptyBody, greeting, nudgeLine, optsSummary, privacySections, savedLine, settleLine, settleSub, settledTitle, SIGNIN_NOTE, splitHelp, storeSub, atLine, categoryDefault, dateLabel, splitLine, storeSelected, todayISO, isABill, settleHero, periodLine, payVenmo, requestVenmo, confirmTitle, confirmBody, COLOR_NAMES, billsCount, daysOpt, reminderSummary, storesCount, theirColor, tooClose, venmoPrivacy, bringBackName, billSub, mergeInto, mergeTitle, removeTitle, retireTitle, storeIsBill, storeTaken, bucketLine, monthLabel, monthShort, oneOffsLine, onTrackLine, pastLine, billsSoFar } from "./copy.js";
+import { C, activityLine, addNewStore, balanceLine, emptyBody, greeting, nudgeLine, optsSummary, privacySections, savedLine, settleLine, settleSub, settledTitle, SIGNIN_NOTE, splitHelp, storeSub, atLine, categoryDefault, dateLabel, splitLine, storeSelected, todayISO, isABill, settleHero, periodLine, payVenmo, requestVenmo, confirmTitle, confirmBody, COLOR_NAMES, billsCount, daysOpt, reminderSummary, storesCount, theirColor, tooClose, venmoPrivacy, bringBackName, billSub, mergeInto, mergeTitle, removeTitle, retireTitle, storeIsBill, storeTaken, bucketLine, monthLabel, monthShort, oneOffsLine, onTrackLine, pastLine, billsIn, paceLine, lastYearLine, backTo, categoryLine } from "./copy.js";
 
 const N = { p1: "Alex", p2: "Sam" };
 describe("copy", () => {
@@ -8,12 +8,19 @@ describe("copy", () => {
       .toBe("Alex changed Costco: one-off no → yes"));
   it("words Insights", () => {
     expect(onTrackLine("$600.00", "$580.65")).toBe("$600.00 so far · usually $580.65 by now");
-    expect([billsSoFar("$645.55", "$645.55"), billsSoFar("$10.00", null)]).toEqual(["Bills so far: $645.55 · usually $645.55 a month", "Bills so far: $10.00"]);
+    expect([billsIn(2, 6, ["Electricity", "Water", "Gardener", "Pool service"], "$80.00"), billsIn(3, 6, ["Electricity", "Water", "Gardener"], "$80.00"), billsIn(2, 2, [], "$90.00"), billsIn(1, 3, ["Water", "Gas bill"], "$1.00")]).toEqual([
+      "Bills: 2 of 6 in so far", "Bills: 3 of 6 in · Electricity, Water and Gardener still to come", "Bills: all 2 in · $90.00", "Bills: 1 of 3 in · Water and Gas bill still to come"]);
+    expect([paceLine("low", "$45.00", "$448.25", 11), paceLine("high", "$900.00", "$12.00", 22), paceLine("on", "$5.00", "$0.00", 3), paceLine("early", "$5.00", "$0.00", 2)]).toEqual([
+      "$45.00 so far, $448.25 less than you usually spend by the 11th", "$900.00 so far, $12.00 more than you usually spend by the 22nd",
+      "$5.00 so far, about what you usually spend by the 3rd", "$5.00 so far. It’s too early in the month to compare."]);
+    expect([lastYearLine("2025-10", "$1,590.00"), backTo("2026-10")]).toEqual(["Last October: $1,590.00 everyday", "Back to October 2026"]);
+    expect([categoryLine("Pets", "$96.00", "$150.00", -36), categoryLine("Groceries", "$600.00", "$620.00", -3), categoryLine("Coffee", "$9.00", 0, 0), categoryLine("Coffee", "$9.00", null, 0)]).toEqual([
+      "Pets $96.00 · 36% less than usual ($150.00)", "Groceries $600.00 · about usual", "Coffee $9.00 · usually nothing", "Coffee $9.00"]);
     expect([oneOffsLine("$1,508.49", 1), oneOffsLine("$2.00", 2)]).toEqual(["One-offs: $1,508.49 · 1 purchase", "One-offs: $2.00 · 2 purchases"]);
-    expect([pastLine("July 2026", "$810.00", "$900.00", -10), pastLine("May 2026", "$9.00", "$9.00", 0), pastLine("June 2026", "$1.00", "$1.00", 12)]).toEqual([
-      "July 2026 · $810.00 everyday · usual $900.00 · 10% below usual", "May 2026 · $9.00 everyday · usual $9.00 · about usual",
-      "June 2026 · $1.00 everyday · usual $1.00 · 12% above usual"]);
-    expect([bucketLine("Wants", "$200.00", 7, 19), bucketLine("Wants", "$200.00", 7, null)]).toEqual(["Wants $200.00 · 7% (usual 19%)", "Wants $200.00 · 7%"]);
+    expect([pastLine("$810.00", "$900.00", -10), pastLine("$9.00", "$9.00", 0), pastLine("$1.00", "$1.00", 12)]).toEqual([
+      "10% less than usual on everyday spending: $810.00, against a usual $900.00.", "About usual on everyday spending: $9.00, against a usual $9.00.",
+      "12% more than usual on everyday spending: $1.00, against a usual $1.00."]);
+    expect([bucketLine("Wants", "$200.00", 7, 19), bucketLine("Wants", "$200.00", 7, null)]).toEqual(["Wants $200.00 · 7% of the month, usually 19%", "Wants $200.00 · 7% of the month"]);
     expect([monthLabel("2026-08"), monthShort("2026-08")]).toEqual(["August 2026", "Aug"]);
     expect(C.historyLine).toBe("A monthly summary of your spending from before the app: totals by category and bill, with no stores, notes, or line items.");
   });

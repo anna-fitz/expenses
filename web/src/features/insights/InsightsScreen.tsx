@@ -5,8 +5,9 @@ import { useScreen } from "@/app/useScreen";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useData } from "@/data/data";
-import { C, monthLabel } from "@/domain/copy.js";
-import { figuresFor, monthOf, shiftMonth, today, usual, usualMix } from "@/domain/insights";
+import { C, backTo, monthLabel } from "@/domain/copy.js";
+import { categoryRows, figuresFor, monthOf, shiftMonth, today, usual, usualMix } from "@/domain/insights";
+import { CategoryCard } from "./CategoryCard";
 import { NeedsCard } from "./NeedsCard";
 import { NeedsSheet } from "./NeedsSheet";
 import { OnTrackCard } from "./OnTrackCard";
@@ -14,7 +15,7 @@ import { useExpensesSince, useHistory } from "./useInsightsData";
 
 // One scrolling page: the month, then On track, then Needs vs. wants. Who paid is never shown here.
 export function InsightsScreen({ route }: { route: Route }) {
-  const { settings } = useData(), h1 = useRef<HTMLHeadingElement>(null);
+  const { settings, bills } = useData(), h1 = useRef<HTMLHeadingElement>(null);
   useScreen(C.tabInsights, h1);
   const now = today(), current = monthOf(now);
   const m = /^\d{4}-\d{2}$/.test(route.sub || "") && (route.sub as string) <= current ? (route.sub as string) : current;
@@ -34,11 +35,12 @@ export function InsightsScreen({ route }: { route: Route }) {
         <Button variant="ghost" size="icon" className="size-11" data-act="month-next" aria-label={C.nextMonth} disabled={m >= current} onClick={() => go(shiftMonth(m, 1))}>
           <ChevronRight className="size-5" aria-hidden="true" /></Button>
       </div>
-      {m !== current && <Button variant="link" className="h-11 self-center text-body" data-act="month-now" onClick={() => go(current)}>{C.thisMonth}</Button>}
+      {m !== current && <Button variant="link" className="h-11 self-center text-body" data-act="month-now" onClick={() => go(current)}>{backTo(current)}</Button>}
       {!ready ? <Skeleton className="h-40 rounded-xl" /> : (
         <>
           <OnTrackCard month={m} current={m === current} day={Number(now.slice(8, 10))} f={get(m)}
-            usualEvery={usual(m, get, (f) => f.everyday)} usualBills={usual(m, get, (f) => f.bills)} />
+            usualEvery={usual(m, get, (f) => f.everyday)} bills={bills} lastYear={get(shiftMonth(m, -12))} />
+          <CategoryCard rows={categoryRows(m, get)} />
           <NeedsCard f={get(m)} mix={usualMix(m, get)} onOpen={() => openSheet(`#/insights/${m}/needs`)} />
           {route.id === "needs" && <NeedsSheet month={m} get={get} />}
         </>
